@@ -1,0 +1,49 @@
+FOTOS DE AUTORES
+
+Guarda aqu? una foto JPG por autor con el nombre exacto indicado abajo.
+Por ejemplo: petrarca.jpg corresponde a Francesco Petrarca.
+Recarga la p?gina despu?s de a?adir o cambiar una foto. Si no existe una foto, se muestra la ilustraci?n original.
+La extensi?n debe ser .jpg y el archivo debe ser realmente una imagen JPEG.
+
+ARCHIVOS:
+
+berceo.jpg ? Gonzalo de Berceo
+alfonso-x.jpg ? Alfonso X el Sabio
+juan-manuel.jpg ? Don Juan Manuel
+jorge-manrique.jpg ? Jorge Manrique
+petrarca.jpg ? Francesco Petrarca
+erasmo.jpg ? Erasmo de Róterdam
+shakespeare.jpg ? William Shakespeare
+cervantes.jpg ? Miguel de Cervantes
+gongora.jpg ? Luis de Góngora
+lope.jpg ? Lope de Vega
+quevedo.jpg ? Francisco de Quevedo
+calderon.jpg ? Pedro Calderón de la Barca
+feijoo.jpg ? Benito Jerónimo Feijoo
+voltaire.jpg ? Voltaire
+johnson.jpg ? Samuel Johnson
+moratin.jpg ? Leandro Fernández de Moratín
+espronceda.jpg ? José de Espronceda
+zorrilla.jpg ? José Zorrilla
+becquer.jpg ? Gustavo Adolfo Bécquer
+rosalia.jpg ? Rosalía de Castro
+galdos.jpg ? Benito Pérez Galdós
+valera.jpg ? Juan Valera
+pardo-bazan.jpg ? Emilia Pardo Bazán
+clarin.jpg ? Leopoldo Alas «Clarín»
+marti.jpg ? José Martí
+dario.jpg ? Rubén Darío
+lugones.jpg ? Leopoldo Lugones
+nervo.jpg ? Amado Nervo
+azorin.jpg ? Azorín (José Martínez Ruiz)
+machado.jpg ? Antonio Machado
+baroja.jpg ? Pío Baroja
+unamuno.jpg ? Miguel de Unamuno
+alberti.jpg ? Rafael Alberti
+lorca.jpg ? Federico García Lorca
+cernuda.jpg ? Luis Cernuda
+aleixandre.jpg ? Vicente Aleixandre
+cela.jpg ? Camilo José Cela
+martin-gaite.jpg ? Carmen Martín Gaite
+grandes.jpg ? Almudena Grandes
+marias.jpg ? Javier Marías

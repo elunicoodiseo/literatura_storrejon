@@ -1,0 +1,2510 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Línea de tiempo de la literatura | Sebastian Torrejón</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Three.js & GSAP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Google Fonts: Tipografía Editorial y Moderna -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Cinzel', 'serif'],
+            editorial: ['Cormorant Garamond', 'serif'],
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            obsidian: '#080B14',
+            midnight: '#101827',
+            gold: '#D4AF37',
+            ivory: '#F5F0E6',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg-deep: #080B14;
+      --gold: #D4AF37;
+      --ivory: #F5F0E6;
+      --era-accent: #D4AF37;
+      --era-secondary: #8B5CF6;
+    }
+
+    * {
+      box-sizing: border-box;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(212, 175, 55, 0.35) rgba(8, 11, 20, 0.8);
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(8, 11, 20, 0.8);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(212, 175, 55, 0.35);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(212, 175, 55, 0.65);
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #080B14;
+      color: #F5F0E6;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    #webgl-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      display: block;
+    }
+
+    /* Glassmorphism Museo Digital */
+    .museum-glass {
+      background: linear-gradient(135deg, rgba(16, 24, 39, 0.78) 0%, rgba(8, 11, 20, 0.88) 100%);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(245, 240, 230, 0.12);
+      box-shadow: 0 24px 60px -15px rgba(0, 0, 0, 0.75), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .museum-glass-light {
+      background: rgba(16, 24, 39, 0.55);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(245, 240, 230, 0.1);
+    }
+
+    .gold-gradient-text {
+      background: linear-gradient(135deg, #FFF3C4 0%, #D4AF37 45%, #AA7C11 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Tarjeta 3D con inclinación */
+    .tilt-card {
+      transform-style: preserve-3d;
+      transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+    .tilt-card:hover {
+      border-color: var(--era-accent);
+      box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.8), 0 0 25px -5px var(--era-accent);
+    }
+
+    /* Libro 3D interactivo en CSS para biblioteca y modal */
+    .book-3d-wrapper {
+      perspective: 1200px;
+    }
+    .book-3d {
+      transform-style: preserve-3d;
+      transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+      position: relative;
+    }
+    .book-3d-wrapper:hover .book-3d {
+      transform: rotateY(-24deg) rotateX(6deg) translateY(-8px);
+    }
+    .book-spine {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 24px;
+      transform-origin: left center;
+      transform: rotateY(-90deg);
+      background: linear-gradient(90deg, rgba(0,0,0,0.6), rgba(255,255,255,0.15), rgba(0,0,0,0.5));
+    }
+    .book-pages-edge {
+      position: absolute;
+      right: 2px;
+      top: 4px;
+      bottom: 4px;
+      width: 14px;
+      transform: translateZ(-7px) rotateY(90deg);
+      background: repeating-linear-gradient(90deg, #e8dfd1 0px, #d5c7b2 2px, #f5f0e6 3px);
+    }
+
+    /* Animación de apertura de libro en el modal */
+    .modal-book-stage {
+      perspective: 1800px;
+    }
+    .modal-book-cover {
+      transform-origin: left center;
+      transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+      transform-style: preserve-3d;
+    }
+    .modal-book-open .modal-book-cover {
+      transform: rotateY(-155deg);
+    }
+
+    /* Viñeta atmosférica */
+    .cinematic-vignette {
+      background: radial-gradient(circle at center, transparent 48%, rgba(4, 6, 12, 0.82) 100%);
+      pointer-events: none;
+    }
+
+    /* Estilos específicos de impresión A3 horizontal */
+    @media print {
+      @page {
+        size: A3 landscape;
+        margin: 8mm;
+      }
+      body {
+        background: #ffffff !important;
+        color: #111827 !important;
+        overflow: visible !important;
+      }
+      #webgl-canvas, #hud-navbar, #hud-timeline-bar, #intro-screen, #floating-controls, #era-ambient-badge {
+        display: none !important;
+      }
+      #print-view-container {
+        position: static !important;
+        inset: auto !important;
+        background: #ffffff !important;
+        color: #111827 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        display: block !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-grid-a3 {
+        display: grid !important;
+        grid-template-columns: repeat(5, 1fr) !important;
+        gap: 8px !important;
+      }
+      .print-card {
+        border: 1px solid #cbd5e1 !important;
+        background: #f8fafc !important;
+        color: #0f172a !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        box-shadow: none !important;
+      }
+    }
+
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+    .animate-float-slow {
+      animation: floatSlow 5s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.65; }
+      50% { opacity: 1; }
+    }
+    .animate-pulse-glow {
+      animation: pulseGlow 3s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-obsidian text-ivory antialiased selection:bg-gold/30 selection:text-ivory">
+
+  <!-- LIENZO 3D PRINCIPAL (THREE.JS) -->
+  <canvas id="webgl-canvas"></canvas>
+
+  <!-- VIÑETA CINEMATOGRÁFICA -->
+  <div class="fixed inset-0 cinematic-vignette z-[1]"></div>
+
+  <!-- =====================================================================
+       PANTALLA DE INICIO CINEMATOGRÁFICA
+  ====================================================================== -->
+  <section id="intro-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-between px-6 py-10 md:py-14 transition-opacity duration-1000">
+    <!-- Barra superior de introducción -->
+    <div class="w-full max-w-7xl flex items-center justify-between z-10">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full border border-gold/40 bg-obsidian/70 flex items-center justify-center text-gold shadow-lg">
+          <i data-lucide="compass" class="w-4 h-4"></i>
+        </div>
+        <span class="text-xs uppercase tracking-[0.28em] text-ivory/70 font-medium">Museo Literario Inmersivo 3D</span>
+      </div>
+      <button id="btn-skip-intro" class="px-4 py-2 rounded-full museum-glass-light text-xs uppercase tracking-widest text-ivory/80 hover:text-gold hover:border-gold/50 transition flex items-center gap-2 cursor-pointer">
+        <span>Omitir introducción</span>
+        <i data-lucide="fast-forward" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+
+    <!-- Contenido central épico -->
+    <div class="relative z-10 max-w-4xl mx-auto text-center flex flex-col items-center my-auto">
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-gold/35 bg-obsidian/65 backdrop-blur-md mb-6 animate-float-slow">
+        <span class="w-2 h-2 rounded-full bg-gold animate-ping"></span>
+        <span class="text-xs uppercase tracking-[0.25em] text-gold font-semibold">Archivo Histórico Cronológico</span>
+      </div>
+
+      <h1 class="font-display text-4xl sm:text-6xl md:text-7xl font-bold tracking-wider uppercase leading-tight gold-gradient-text drop-shadow-[0_10px_30px_rgba(0,0,0,0.9)]">
+        LÍNEA DE TIEMPO DE LA LITERATURA
+      </h1>
+
+      <p class="font-editorial italic text-2xl sm:text-3xl md:text-4xl text-ivory/95 mt-4 tracking-wide">
+        De la Edad Media a la actualidad
+      </p>
+
+      <div class="mt-4 flex items-center gap-3">
+        <span class="h-px w-10 bg-gradient-to-r from-transparent to-gold/70"></span>
+        <p class="text-sm sm:text-base uppercase tracking-[0.3em] text-gold font-semibold">
+          Sebastian Torrejón
+        </p>
+        <span class="h-px w-10 bg-gradient-to-l from-transparent to-gold/70"></span>
+      </div>
+
+      <!-- Indicadores animados -->
+      <div class="grid grid-cols-3 gap-3 sm:gap-8 mt-10 w-full max-w-2xl">
+        <div class="museum-glass rounded-2xl p-4 sm:p-5 border border-gold/25">
+          <div id="counter-movements" class="font-display text-3xl sm:text-4xl font-bold text-gold">0</div>
+          <div class="text-[11px] sm:text-xs uppercase tracking-widest text-ivory/75 mt-1">Movimientos literarios</div>
+        </div>
+        <div class="museum-glass rounded-2xl p-4 sm:p-5 border border-gold/25">
+          <div id="counter-authors" class="font-display text-3xl sm:text-4xl font-bold text-gold">0</div>
+          <div class="text-[11px] sm:text-xs uppercase tracking-widest text-ivory/75 mt-1">Grandes autores</div>
+        </div>
+        <div class="museum-glass rounded-2xl p-4 sm:p-5 border border-gold/25">
+          <div id="counter-works" class="font-display text-3xl sm:text-4xl font-bold text-gold">0</div>
+          <div class="text-[11px] sm:text-xs uppercase tracking-widest text-ivory/75 mt-1">Obras literarias</div>
+        </div>
+      </div>
+
+      <!-- Botón principal -->
+      <button id="btn-start-journey" class="group relative mt-10 px-9 py-4 rounded-full bg-gradient-to-r from-[#B8860B] via-[#D4AF37] to-[#E6C252] text-obsidian font-display font-bold text-sm sm:text-base tracking-[0.22em] uppercase shadow-[0_0_40px_rgba(212,175,55,0.45)] hover:shadow-[0_0_60px_rgba(212,175,55,0.75)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-3 cursor-pointer">
+        <i data-lucide="book-open" class="w-5 h-5 transition-transform group-hover:rotate-12"></i>
+        <span>COMENZAR EL VIAJE</span>
+        <i data-lucide="arrow-right" class="w-5 h-5 transition-transform group-hover:translate-x-1"></i>
+      </button>
+    </div>
+
+    <!-- Pie de pantalla de inicio -->
+    <div class="z-10 text-center text-xs text-ivory/50 tracking-widest uppercase">
+      Un viaje tridimensional a través de la historia literaria
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       BARRA DE NAVEGACIÓN FLOTANTE SUPERIOR
+  ====================================================================== -->
+  <header id="hud-navbar" class="fixed top-4 left-1/2 -translate-x-1/2 z-40 w-[96%] max-w-7xl opacity-0 pointer-events-none transition-opacity duration-700">
+    <div class="museum-glass rounded-2xl px-3 sm:px-5 py-2.5 flex items-center justify-between gap-2">
+      <!-- Marca / Inicio -->
+      <button onclick="app.showIntro()" class="flex items-center gap-2.5 text-left group cursor-pointer shrink-0" title="Volver a la portada">
+        <div class="w-9 h-9 rounded-xl bg-gold/15 border border-gold/40 flex items-center justify-center text-gold group-hover:bg-gold group-hover:text-obsidian transition">
+          <i data-lucide="landmark" class="w-4 h-4"></i>
+        </div>
+        <div class="hidden sm:block">
+          <div class="font-display text-xs font-bold tracking-wider text-ivory uppercase leading-none">Línea Literaria</div>
+          <div class="text-[10px] text-gold/90 tracking-widest uppercase mt-0.5">Sebastian Torrejón</div>
+        </div>
+      </button>
+
+      <!-- Modos de Visualización -->
+      <nav class="flex items-center gap-1 overflow-x-auto py-1 no-scrollbar">
+        <button data-mode="immersive" onclick="app.setMode('immersive')" class="mode-btn active px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition whitespace-nowrap cursor-pointer">
+          <i data-lucide="orbit" class="w-3.5 h-3.5"></i>
+          <span>Viaje 3D</span>
+        </button>
+        <button data-mode="panoramic" onclick="app.setMode('panoramic')" class="mode-btn px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition whitespace-nowrap cursor-pointer">
+          <i data-lucide="map" class="w-3.5 h-3.5"></i>
+          <span>Panorámica</span>
+        </button>
+        <button data-mode="authors" onclick="app.setMode('authors')" class="mode-btn px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition whitespace-nowrap cursor-pointer">
+          <i data-lucide="users" class="w-3.5 h-3.5"></i>
+          <span>Autores (40)</span>
+        </button>
+        <button data-mode="library" onclick="app.setMode('library')" class="mode-btn px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition whitespace-nowrap cursor-pointer">
+          <i data-lucide="library" class="w-3.5 h-3.5"></i>
+          <span>Obras (80)</span>
+        </button>
+        <button data-mode="presentation" onclick="app.setMode('presentation')" class="mode-btn px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition whitespace-nowrap cursor-pointer">
+          <i data-lucide="presentation" class="w-3.5 h-3.5"></i>
+          <span class="hidden md:inline">Presentación</span>
+        </button>
+        <button data-mode="print" onclick="app.setMode('print')" class="mode-btn px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition whitespace-nowrap cursor-pointer">
+          <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+          <span class="hidden md:inline">Vista A3</span>
+        </button>
+      </nav>
+
+      <!-- Utilidades: Buscador, Audio, Pantalla completa -->
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button onclick="app.toggleSearch()" class="p-2 rounded-xl museum-glass-light hover:border-gold/50 text-ivory/85 hover:text-gold transition cursor-pointer" title="Buscar autor, obra, año o movimiento">
+          <i data-lucide="search" class="w-4 h-4"></i>
+        </button>
+        <button id="btn-audio-toggle" onclick="app.toggleAudio()" class="p-2 rounded-xl museum-glass-light hover:border-gold/50 text-ivory/85 hover:text-gold transition cursor-pointer" title="Sonido ambiental de época">
+          <i id="icon-audio" data-lucide="volume-x" class="w-4 h-4"></i>
+        </button>
+        <div id="audio-volume-wrap" class="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-xl museum-glass-light">
+          <input id="audio-volume" type="range" min="0" max="1" step="0.05" value="0.35" oninput="app.setVolume(this.value)" class="w-16 accent-gold cursor-pointer" title="Volumen ambiental">
+        </div>
+        <button onclick="app.toggleFullscreen()" class="p-2 rounded-xl museum-glass-light hover:border-gold/50 text-ivory/85 hover:text-gold transition cursor-pointer" title="Pantalla completa">
+          <i data-lucide="maximize" class="w-4 h-4"></i>
+        </button>
+        <button onclick="app.toggleSourcesModal()" class="p-2 rounded-xl museum-glass-light hover:border-gold/50 text-ivory/85 hover:text-gold transition cursor-pointer" title="Fuentes bibliográficas">
+          <i data-lucide="info" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- =====================================================================
+       MODO 1: EXPERIENCIA INMERSIVA 3D (HUD DE ESTACIÓN ACTUAL)
+  ====================================================================== -->
+  <main id="immersive-hud" class="fixed inset-0 z-20 pointer-events-none opacity-0 transition-opacity duration-700 flex flex-col justify-between pt-20 pb-24 px-4 sm:px-8">
+    
+    <!-- Cabecera de la época activa -->
+    <div class="max-w-7xl w-full mx-auto flex flex-col md:flex-row md:items-end justify-between gap-4 pointer-events-auto">
+      <div class="museum-glass rounded-2xl p-4 sm:p-5 max-w-3xl border-l-4 transition-colors duration-500" id="era-header-card" style="border-left-color: #D4AF37;">
+        <div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-widest font-semibold" id="era-badge-row">
+          <span id="era-number-badge" class="px-2.5 py-0.5 rounded-full bg-gold/20 text-gold border border-gold/40">Etapa 01 / 10</span>
+          <span id="era-period-badge" class="text-ivory/90 font-bold">476 - 1492</span>
+          <span class="text-ivory/40">•</span>
+          <span id="era-atmosphere-tag" class="text-gold/90 italic font-editorial text-sm capitalize">Castillos y manuscritos iluminados</span>
+        </div>
+        <h2 id="era-title" class="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-ivory mt-1.5 tracking-wide">
+          Literatura medieval
+        </h2>
+        <p id="era-description" class="text-xs sm:text-sm text-ivory/85 mt-1.5 leading-relaxed">
+          Transmisión oral y monástica, mester de juglaría y clerecía, prosa alfonsí y poesía elegíaca en la transición hacia el Humanismo.
+        </p>
+        <div id="era-special-box" class="mt-2.5 pt-2.5 border-t border-ivory/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <p class="text-xs text-ivory/80 leading-relaxed">
+            <span class="text-gold font-semibold uppercase tracking-wider text-[11px]">✦ ¿Qué lo hizo especial?: </span>
+            <span id="era-special-text"></span>
+          </p>
+          <button onclick="app.openEraDetailModal()" class="shrink-0 self-start sm:self-center px-3 py-1 rounded-lg bg-gold/15 hover:bg-gold text-gold hover:text-obsidian border border-gold/35 text-[11px] font-semibold uppercase tracking-wider transition cursor-pointer flex items-center gap-1">
+            <i data-lucide="sparkles" class="w-3 h-3"></i>
+            <span>Contexto completo</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Controles rápidos de navegación espacial -->
+      <div class="flex items-center gap-2 self-start md:self-end">
+        <button onclick="app.prevEra()" class="px-3.5 py-2.5 rounded-xl museum-glass hover:border-gold/60 text-ivory hover:text-gold transition flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider cursor-pointer">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i>
+          <span>Anterior</span>
+        </button>
+        <button onclick="app.nextEra()" class="px-3.5 py-2.5 rounded-xl museum-glass hover:border-gold/60 text-ivory hover:text-gold transition flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider cursor-pointer">
+          <span>Siguiente</span>
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Panel central flotante: 4 Autores y 8 Obras Cronológicas de la Estación -->
+    <div class="max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 my-auto max-h-[58vh] overflow-y-auto pr-1 pointer-events-auto">
+      
+      <!-- Columna Izquierda (5 cols): 4 Autores Destacados -->
+      <div class="lg:col-span-5 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between px-1">
+          <h3 class="text-xs uppercase tracking-[0.22em] text-gold font-semibold flex items-center gap-2">
+            <i data-lucide="feather" class="w-3.5 h-3.5"></i>
+            <span>4 Autores de la Época</span>
+          </h3>
+          <span class="text-[11px] text-ivory/50">Selecciona un autor</span>
+        </div>
+        <div id="immersive-authors-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5">
+          <!-- Inyectado dinámicamente -->
+        </div>
+      </div>
+
+      <!-- Columna Derecha (7 cols): 8 Obras Ordenadas Cronológicamente -->
+      <div class="lg:col-span-7 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between px-1">
+          <h3 class="text-xs uppercase tracking-[0.22em] text-gold font-semibold flex items-center gap-2">
+            <i data-lucide="book-marked" class="w-3.5 h-3.5"></i>
+            <span>8 Obras Literarias (Orden Cronológico)</span>
+          </h3>
+          <span class="text-[11px] text-ivory/50">Haz clic para abrir el libro 3D</span>
+        </div>
+        <div id="immersive-works-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <!-- Inyectado dinámicamente -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Indicador de gesto / scroll -->
+    <div class="text-center pointer-events-none hidden sm:block">
+      <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-obsidian/60 border border-ivory/10 text-[11px] text-ivory/60 tracking-widest uppercase">
+        <i data-lucide="mouse" class="w-3.5 h-3.5 text-gold"></i>
+        Desplaza la rueda del ratón, usa las flechas o selecciona una estación para viajar en el tiempo
+      </span>
+    </div>
+  </main>
+
+  <!-- =====================================================================
+       MODO 2: LÍNEA DE TIEMPO PANORÁMICA INTERACTIVA
+  ====================================================================== -->
+  <section id="panoramic-view" class="fixed inset-0 z-30 pt-20 pb-24 px-4 sm:px-8 hidden overflow-hidden flex flex-col">
+    <div class="max-w-7xl w-full mx-auto flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div>
+        <h2 class="font-display text-2xl sm:text-3xl font-bold gold-gradient-text uppercase">Línea de Tiempo Panorámica</h2>
+        <p class="text-xs sm:text-sm text-ivory/70">Vista conectada de los 10 movimientos literarios y sus 80 hitos cronológicos (escala visual uniforme, no proporcional).</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="app.zoomPanoramic(-0.15)" class="p-2 rounded-xl museum-glass hover:text-gold cursor-pointer" title="Reducir zoom"><i data-lucide="zoom-out" class="w-4 h-4"></i></button>
+        <span id="panoramic-zoom-label" class="text-xs font-mono px-2 text-ivory/80">100%</span>
+        <button onclick="app.zoomPanoramic(0.15)" class="p-2 rounded-xl museum-glass hover:text-gold cursor-pointer" title="Ampliar zoom"><i data-lucide="zoom-in" class="w-4 h-4"></i></button>
+      </div>
+    </div>
+
+    <div id="panoramic-scroll-container" class="flex-1 overflow-x-auto overflow-y-auto museum-glass rounded-3xl p-6 relative cursor-grab active:cursor-grabbing">
+      <div id="panoramic-track" class="inline-flex items-stretch gap-8 min-h-full origin-top-left transition-transform duration-200 pb-4">
+        <!-- Las 10 estaciones panorámicas se inyectan aquí -->
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       MODO 3: GALERÍA DE AUTORES (40 TARJETAS 3D INTERACTIVAS)
+  ====================================================================== -->
+  <section id="authors-view" class="fixed inset-0 z-30 pt-20 pb-24 px-4 sm:px-8 hidden overflow-y-auto">
+    <div class="max-w-7xl w-full mx-auto">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 class="font-display text-2xl sm:text-3xl font-bold gold-gradient-text uppercase">Galería de Grandes Autores</h2>
+          <p class="text-xs sm:text-sm text-ivory/70">Los 40 autores esenciales de la historia literaria y sus obras fundamentales.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <label for="filter-authors-era" class="text-xs text-ivory/70 uppercase tracking-wider">Filtrar época:</label>
+          <select id="filter-authors-era" onchange="app.renderAuthorsGallery(this.value)" class="museum-glass rounded-xl px-3.5 py-2 text-xs text-ivory border border-gold/30 focus:outline-none focus:border-gold cursor-pointer">
+            <option value="all">Todos los movimientos (40 autores)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="authors-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <!-- 40 Tarjetas 3D de autores -->
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       MODO 4: BIBLIOTECA VIRTUAL (80 LIBROS 3D INTERACTIVOS)
+  ====================================================================== -->
+  <section id="library-view" class="fixed inset-0 z-30 pt-20 pb-24 px-4 sm:px-8 hidden overflow-y-auto">
+    <div class="max-w-7xl w-full mx-auto">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 class="font-display text-2xl sm:text-3xl font-bold gold-gradient-text uppercase">Biblioteca Virtual Cronológica</h2>
+          <p class="text-xs sm:text-sm text-ivory/70">Explora y abre cualquiera de los 80 volúmenes ordenados por movimiento y fecha.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="filter-library-era" onchange="app.renderLibraryView(this.value)" class="museum-glass rounded-xl px-3.5 py-2 text-xs text-ivory border border-gold/30 focus:outline-none focus:border-gold cursor-pointer">
+            <option value="all">Todas las épocas (80 obras)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="library-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <!-- 80 Libros 3D -->
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       MODO 5: PRESENTACIÓN ESCOLAR A PANTALLA COMPLETA
+  ====================================================================== -->
+  <section id="presentation-view" class="fixed inset-0 z-30 pt-20 pb-24 px-4 sm:px-8 hidden flex flex-col justify-between">
+    <div class="max-w-6xl w-full mx-auto my-auto museum-glass rounded-3xl p-6 sm:p-10 border border-gold/30 relative overflow-hidden">
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-ivory/10 pb-4 mb-6">
+        <div>
+          <span id="pres-step-indicator" class="text-xs uppercase tracking-[0.25em] text-gold font-bold">Diapositiva 1 de 10</span>
+          <h2 id="pres-era-title" class="font-display text-3xl sm:text-5xl font-bold text-ivory mt-1">Literatura medieval</h2>
+        </div>
+        <div class="text-right">
+          <div id="pres-era-period" class="font-editorial italic text-2xl sm:text-3xl text-gold">476 - 1492</div>
+          <div class="text-xs text-ivory/60 uppercase tracking-widest mt-0.5">4 Autores • 8 Obras</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <!-- Autores de la diapositiva -->
+        <div class="lg:col-span-5 space-y-3">
+          <div class="p-3.5 rounded-2xl bg-ivory/5 border border-gold/25 mb-2">
+            <div class="text-[11px] uppercase tracking-widest text-gold font-bold mb-1">¿Qué define esta corriente y qué la hizo especial?</div>
+            <p id="pres-era-desc" class="text-xs text-ivory/85 leading-relaxed"></p>
+            <p id="pres-era-special" class="text-xs text-gold/95 mt-1.5 font-medium leading-relaxed"></p>
+          </div>
+          <h3 class="text-xs uppercase tracking-widest text-gold font-semibold">Autores Representativos</h3>
+          <div id="pres-authors" class="grid grid-cols-2 gap-3"></div>
+        </div>
+        <!-- Obras cronológicas de la diapositiva -->
+        <div class="lg:col-span-7 space-y-3">
+          <h3 class="text-xs uppercase tracking-widest text-gold font-semibold">Cronología de Obras</h3>
+          <div id="pres-works" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+        </div>
+      </div>
+
+      <!-- Barra de control de presentación escolar -->
+      <div class="mt-8 pt-4 border-t border-ivory/10 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+          <button onclick="app.presPrev()" class="px-4 py-2 rounded-xl museum-glass-light hover:border-gold text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="skip-back" class="w-4 h-4"></i> Anterior
+          </button>
+          <button id="btn-pres-play" onclick="app.togglePresAutoplay()" class="px-5 py-2 rounded-xl bg-gold text-obsidian font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 cursor-pointer">
+            <i id="icon-pres-play" data-lucide="play" class="w-4 h-4"></i>
+            <span id="label-pres-play">Reproducir</span>
+          </button>
+          <button onclick="app.presNext()" class="px-4 py-2 rounded-xl museum-glass-light hover:border-gold text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer">
+            Siguiente <i data-lucide="skip-forward" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <label class="text-xs text-ivory/70">Velocidad:</label>
+          <select id="pres-speed" onchange="app.setPresSpeed(this.value)" class="museum-glass-light rounded-lg px-2.5 py-1.5 text-xs text-ivory border border-ivory/15 cursor-pointer">
+            <option value="8000">Lenta (8s)</option>
+            <option value="5000" selected>Normal (5s)</option>
+            <option value="3000">Rápida (3s)</option>
+          </select>
+          <button onclick="app.toggleFullscreen()" class="px-3 py-1.5 rounded-lg museum-glass-light hover:text-gold text-xs flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i> Pantalla completa
+          </button>
+        </div>
+      </div>
+
+      <!-- Barra de progreso de autoplay -->
+      <div class="w-full h-1 bg-ivory/10 rounded-full mt-4 overflow-hidden">
+        <div id="pres-progress-bar" class="h-full bg-gold transition-all duration-300" style="width: 10%;"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       MODO 6: VISTA DE IMPRESIÓN A3 HORIZONTAL (2 FILAS X 5 COLUMNAS)
+  ====================================================================== -->
+  <section id="print-view-container" class="fixed inset-0 z-30 pt-20 pb-24 px-4 sm:px-8 hidden overflow-y-auto bg-obsidian/95">
+    <div class="max-w-[1600px] w-full mx-auto">
+      <div class="no-print flex flex-wrap items-center justify-between gap-4 mb-6 museum-glass rounded-2xl p-4">
+        <div>
+          <h2 class="font-display text-xl sm:text-2xl font-bold gold-gradient-text uppercase">Vista de Impresión A3 Horizontal</h2>
+          <p class="text-xs text-ivory/70">Disposición estructurada en 2 filas × 5 columnas con los 10 movimientos, 40 autores y 80 obras.</p>
+        </div>
+        <button onclick="window.print()" class="px-5 py-2.5 rounded-xl bg-gold text-obsidian font-display font-bold text-xs uppercase tracking-wider flex items-center gap-2 hover:brightness-110 transition cursor-pointer">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          <span>Imprimir / Guardar PDF (A3)</span>
+        </button>
+      </div>
+
+      <div class="mb-4 text-center border-b border-gold/40 pb-3">
+        <h1 class="font-display text-2xl font-bold uppercase tracking-wider">Línea de tiempo de la literatura</h1>
+        <p class="text-xs opacity-80">De la Edad Media a la actualidad • 10 movimientos / 40 autores / 80 obras • Sebastian Torrejón</p>
+      </div>
+
+      <div id="print-grid-a3" class="print-grid-a3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <!-- 10 tarjetas en 2 filas x 5 columnas -->
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       BARRA INFERIOR DE PROGRESO CRONOLÓGICO Y MAPA DE ESTACIONES
+  ====================================================================== -->
+  <footer id="hud-timeline-bar" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[96%] max-w-7xl opacity-0 pointer-events-none transition-opacity duration-700">
+    <div class="museum-glass rounded-2xl px-4 py-2.5">
+      <div class="flex items-center justify-between text-xs mb-1.5">
+        <div class="flex items-center gap-2 truncate">
+          <span class="text-ivory/50 uppercase tracking-widest text-[10px]">Época actual:</span>
+          <span id="footer-era-name" class="font-display font-bold text-gold truncate">1. Literatura medieval</span>
+          <span id="footer-era-dates" class="text-ivory/70 font-mono text-[11px] hidden sm:inline">(476-1492)</span>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+          <span class="text-[10px] uppercase tracking-widest text-ivory/50 hidden md:inline">Recorrido cronológico</span>
+          <span id="footer-progress-pct" class="font-mono text-xs font-bold text-gold">10%</span>
+        </div>
+      </div>
+
+      <div class="relative flex items-center justify-between pt-1">
+        <div class="absolute left-3 right-3 top-[11px] h-0.5 bg-ivory/15 rounded-full"></div>
+        <div id="timeline-progress-fill" class="absolute left-3 top-[11px] h-0.5 bg-gradient-to-r from-gold to-amber-300 rounded-full transition-all duration-500" style="width: 0%;"></div>
+        <div id="timeline-nodes-container" class="relative z-10 w-full flex items-center justify-between">
+          <!-- 10 Nodos interactivos inyectados por JS -->
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- =====================================================================
+       MODAL: BUSCADOR INTELIGENTE EN TIEMPO REAL
+  ====================================================================== -->
+  <div id="search-modal" class="fixed inset-0 z-50 bg-obsidian/85 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="museum-glass w-full max-w-2xl rounded-3xl p-6 border border-gold/40 relative flex flex-col max-h-[82vh]">
+      <div class="flex items-center justify-between gap-3 border-b border-ivory/15 pb-3">
+        <div class="flex items-center gap-2.5 flex-1">
+          <i data-lucide="search" class="w-5 h-5 text-gold shrink-0"></i>
+          <input id="search-input" type="text" oninput="app.handleSearch(this.value)" placeholder="Buscar por autor, obra, año o movimiento literario..." class="w-full bg-transparent text-ivory placeholder-ivory/40 text-sm sm:text-base focus:outline-none">
+        </div>
+        <button onclick="app.toggleSearch()" class="p-2 rounded-full bg-ivory/10 hover:bg-gold hover:text-obsidian transition cursor-pointer">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="search-results" class="mt-4 overflow-y-auto space-y-2 pr-1">
+        <!-- Resultados en tiempo real -->
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL: FICHA DE OBRA LITERARIA Y LIBRO 3D
+  ====================================================================== -->
+  <div id="work-modal" class="fixed inset-0 z-50 bg-obsidian/85 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="museum-glass w-full max-w-3xl rounded-3xl p-6 sm:p-8 border border-gold/40 relative max-h-[90vh] overflow-y-auto">
+      <button onclick="app.closeWorkModal()" class="absolute top-5 right-5 p-2 rounded-full bg-ivory/10 hover:bg-gold hover:text-obsidian transition cursor-pointer z-10">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+        <!-- Representación 3D del libro -->
+        <div class="md:col-span-5 flex flex-col items-center">
+          <div class="w-48 h-64 rounded-r-2xl rounded-l-md bg-gradient-to-br from-[#2a1a12] via-[#18121e] to-[#0b0f19] border-2 border-gold/50 p-4 flex flex-col justify-between shadow-[0_20px_50px_rgba(0,0,0,0.85)] relative">
+            <div class="text-[10px] uppercase tracking-widest text-gold font-bold truncate" id="modal-book-era">Movimiento</div>
+            <div class="my-auto text-center">
+              <div id="modal-book-cover-title" class="font-editorial text-lg font-bold text-ivory leading-snug line-clamp-4">Título</div>
+              <div class="w-10 h-px bg-gold/60 mx-auto my-2"></div>
+              <div id="modal-book-cover-author" class="text-xs text-ivory/80">Autor</div>
+            </div>
+            <div class="text-center font-display text-sm font-bold text-gold" id="modal-book-cover-year">Año</div>
+          </div>
+          <span class="text-[10px] text-ivory/45 mt-2 italic">Representación artística de edición</span>
+        </div>
+
+        <!-- Información detallada de la obra -->
+        <div class="md:col-span-7 space-y-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <span id="modal-work-date" class="px-3 py-1 rounded-full bg-gold/20 border border-gold/40 font-display text-sm font-bold text-gold">Año</span>
+            <span id="modal-work-date-type" class="text-xs text-ivory/65">Tipo de fecha</span>
+          </div>
+
+          <h3 id="modal-work-title" class="font-editorial text-2xl sm:text-3xl font-bold text-ivory leading-tight">Título de la obra</h3>
+
+          <div class="flex items-center gap-3 p-3 rounded-2xl bg-ivory/5 border border-ivory/10">
+            <img id="modal-work-author-img" src="" alt="Autor" class="w-12 h-12 rounded-full object-cover border border-gold/50">
+            <div>
+              <div id="modal-work-author" class="font-display text-sm font-bold text-ivory">Autor</div>
+              <div id="modal-work-movement" class="text-xs text-gold">Movimiento literario</div>
+            </div>
+          </div>
+
+          <p id="modal-work-desc" class="text-sm text-ivory/85 leading-relaxed">Descripción de la obra.</p>
+
+          <div class="pt-2 border-t border-ivory/10 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="text-ivory/60">
+              <span class="uppercase tracking-wider text-[10px] block text-ivory/45">Fuente bibliográfica:</span>
+              <span id="modal-work-source" class="text-ivory/85 font-medium">Fuente</span>
+            </div>
+            <button id="btn-jump-work-era" class="px-4 py-2 rounded-xl bg-gold text-obsidian font-bold uppercase tracking-wider text-xs hover:brightness-110 transition cursor-pointer">
+              Ir a su época 3D
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL: FICHA DE AUTOR Y SUS DOS OBRAS
+  ====================================================================== -->
+  <div id="author-modal" class="fixed inset-0 z-50 bg-obsidian/85 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="museum-glass w-full max-w-2xl rounded-3xl p-6 sm:p-8 border border-gold/40 relative">
+      <button onclick="app.closeAuthorModal()" class="absolute top-5 right-5 p-2 rounded-full bg-ivory/10 hover:bg-gold hover:text-obsidian transition cursor-pointer">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+        <img id="modal-author-portrait" src="" alt="Retrato" class="w-24 h-24 rounded-2xl object-cover border-2 border-gold shadow-lg shrink-0">
+        <div>
+          <span id="modal-author-era" class="text-xs uppercase tracking-widest text-gold font-bold">Movimiento</span>
+          <h3 id="modal-author-name" class="font-display text-2xl sm:text-3xl font-bold text-ivory mt-1">Nombre del autor</h3>
+          <p id="modal-author-bio" class="text-sm text-ivory/80 mt-2 leading-relaxed">Biografía breve.</p>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-ivory/10">
+        <h4 class="text-xs uppercase tracking-widest text-gold font-semibold mb-3">Obras destacadas en la cronología</h4>
+        <div id="modal-author-works" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- Dos obras del autor -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL: CONTEXTO COMPLETO DE LA CORRIENTE LITERARIA
+  ====================================================================== -->
+  <div id="era-detail-modal" class="fixed inset-0 z-50 bg-obsidian/85 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="museum-glass w-full max-w-2xl rounded-3xl p-6 sm:p-8 border border-gold/40 relative">
+      <button onclick="app.closeEraDetailModal()" class="absolute top-5 right-5 p-2 rounded-full bg-ivory/10 hover:bg-gold hover:text-obsidian transition cursor-pointer">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gold/15 border border-gold/35 text-gold text-xs font-semibold">
+        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+        <span id="modal-era-period">Periodo</span>
+      </div>
+
+      <h3 id="modal-era-title" class="font-display text-2xl sm:text-3xl font-bold text-ivory mt-2">
+        Nombre del Movimiento
+      </h3>
+
+      <div class="mt-4 space-y-4 text-sm text-ivory/85 leading-relaxed">
+        <div class="p-4 rounded-2xl bg-ivory/5 border border-ivory/10">
+          <h4 class="text-xs uppercase tracking-widest text-gold font-bold mb-1.5">¿Qué fue esta corriente literaria?</h4>
+          <p id="modal-era-what"></p>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-gold/10 border border-gold/30">
+          <h4 class="text-xs uppercase tracking-widest text-gold font-bold mb-1.5">✦ ¿Qué la hizo especial y única?</h4>
+          <p id="modal-era-special"></p>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-ivory/5 border border-ivory/10">
+          <h4 class="text-xs uppercase tracking-widest text-gold font-bold mb-1.5">Marco histórico (De qué año a qué año)</h4>
+          <p id="modal-era-timeline-note"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL: FUENTES BIBLIOGRÁFICAS Y CRITERIOS
+  ====================================================================== -->
+  <div id="sources-modal" class="fixed inset-0 z-50 bg-obsidian/85 backdrop-blur-md hidden items-center justify-center p-4">
+    <div class="museum-glass w-full max-w-xl rounded-3xl p-6 sm:p-8 border border-gold/40 relative">
+      <button onclick="app.toggleSourcesModal()" class="absolute top-5 right-5 p-2 rounded-full bg-ivory/10 hover:bg-gold hover:text-obsidian transition cursor-pointer">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <h3 class="font-display text-2xl font-bold gold-gradient-text uppercase">Criterios y Fuentes Bibliográficas</h3>
+      <p class="text-xs sm:text-sm text-ivory/80 mt-3 leading-relaxed">
+        <strong>Criterio cronológico:</strong> Primera publicación, salvo fechas de composición o versiones indicadas explícitamente. Abreviaturas: <em>c.</em> = fecha aproximada; <em>s.</em> = siglo. Los movimientos literarios se superponen históricamente y sus límites cronológicos son orientativos.
+      </p>
+      <div class="mt-4">
+        <h4 class="text-xs uppercase tracking-widest text-gold font-semibold mb-2">Instituciones y Fuentes Consultadas</h4>
+        <ul class="space-y-1.5 text-xs sm:text-sm text-ivory/85 list-disc list-inside">
+          <li>Biblioteca Nacional de España (BNE)</li>
+          <li>Biblioteca Virtual Miguel de Cervantes</li>
+          <li>Instituto Cervantes</li>
+          <li>Universidad de León</li>
+          <li>Folger Shakespeare Library</li>
+          <li>Istituto della Enciclopedia Italiana (Treccani)</li>
+          <li>Enciclopedia de la Literatura en México (ELEM)</li>
+        </ul>
+      </div>
+      <div class="mt-6 pt-4 border-t border-ivory/10 flex justify-between items-center text-xs text-ivory/60">
+        <span>Investigación y curaduría: <strong class="text-gold">Sebastian Torrejón</strong></span>
+        <span>10 Movimientos • 40 Autores • 80 Obras</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       BASE DE DATOS ESTRUCTURADA + MOTOR 3D + LÓGICA DE APLICACIÓN
+  ====================================================================== -->
+  <script>
+    // =========================================================================
+    // 1. ESTRUCTURA DE DATOS CENTRALIZADA (10 MOVIMIENTOS, 40 AUTORES, 80 OBRAS)
+    //    Extraída íntegramente de "Linea_de_tiempo_literatura - Sebastian Torrejón.pdf"
+    // =========================================================================
+    const LITERARY_DATA = [
+      {
+        id: "medieval",
+        number: 1,
+        name: "Literatura medieval",
+        period: "476-1492",
+        timelineNote: "Abarca más de diez siglos: desde el año 476 (caída del Imperio romano de Occidente) hasta el año 1492 (llegada de Colón a América, fin de la Reconquista y publicación de la Gramática de Nebrija).",
+        atmosphereTag: "Castillos, monasterios y manuscritos iluminados",
+        description: "Es la primera gran etapa de las literaturas europeas en lenguas romances. Se desarrolla en una sociedad feudal y profundamente religiosa donde la cultura se preservaba en los monasterios y se difundía oralmente en plazas y cortes.",
+        whatMadeItSpecial: "El nacimiento de las lenguas romances como vehículo literario culto (el castellano con Alfonso X y Berceo), la convivencia entre la juglaría popular y el mester de clerecía, y la transición final hacia la conciencia individual de la muerte y la fama en Jorge Manrique.",
+        colors: { primary: "#D4AF37", secondary: "#8B5A2B", bgHex: 0x1a1208, fogHex: 0x140d05 },
+        sceneType: "medieval",
+        authors: [
+          { id: "berceo", name: "Gonzalo de Berceo", bio: "Primer poeta español de nombre conocido y máximo representante del mester de clerecía en el siglo XIII.", worksIds: ["med-1", "med-2"] },
+          { id: "alfonso-x", name: "Alfonso X el Sabio", bio: "Rey de Castilla y León, impulsor de la Escuela de Traductores de Toledo y creador de la prosa castellana culta.", worksIds: ["med-3", "med-4"] },
+          { id: "juan-manuel", name: "Don Juan Manuel", bio: "Noble y escritor castellano del siglo XIV, maestro de la prosa narrativa didáctica con afán de estilo y conservación.", worksIds: ["med-5", "med-6"] },
+          { id: "jorge-manrique", name: "Jorge Manrique", bio: "Poeta prerrenacentista castellano cuya elegía a la muerte de su padre constituye una cumbre de la lírica hispánica.", worksIds: ["med-7", "med-8"] }
+        ],
+        works: [
+          { id: "med-1", displayDate: "c. 1230-1236", sortYear: 1230, dateType: "Fecha aproximada de composición", title: "Vida de Santo Domingo de Silos", authorId: "berceo", authorName: "Gonzalo de Berceo", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Poema hagiográfico en cuaderna vía que narra la vida, virtudes y milagros del santo abad benedictino." },
+          { id: "med-2", displayDate: "c. 1246-1252", sortYear: 1246, dateType: "Fecha aproximada de composición", title: "Milagros de Nuestra Señora", authorId: "berceo", authorName: "Gonzalo de Berceo", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Colección de veinticinco relatos marianos precedidos de una célebre introducción alegórica en cuaderna vía." },
+          { id: "med-3", displayDate: "1256-1265", sortYear: 1256, dateType: "Intervalo de redacción", title: "Las Siete Partidas", authorId: "alfonso-x", authorName: "Alfonso X el Sabio", source: "Biblioteca Nacional de España (BNE)", desc: "Cuerpo normativo redactado en Castilla con el objetivo de conseguir uniformidad jurídica en el reino." },
+          { id: "med-4", displayDate: "c. 1264-1282", sortYear: 1264, dateType: "Fecha aproximada", title: "Cantigas de Santa María", authorId: "alfonso-x", authorName: "Alfonso X el Sabio", source: "Biblioteca Nacional de España (BNE)", desc: "Monumental cancionero religioso en galaicoportugués acompañado de notación musical e iluminaciones." },
+          { id: "med-5", displayDate: "1326-1328", sortYear: 1326, dateType: "Intervalo de composición", title: "Libro del caballero y del escudero", authorId: "juan-manuel", authorName: "Don Juan Manuel", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Tratado dialogado sobre la caballería y el saber enciclopédico impartido por un anciano caballero ermitaño." },
+          { id: "med-6", displayDate: "1335", sortYear: 1335, dateType: "Fecha de conclusión", title: "El conde Lucanor", authorId: "juan-manuel", authorName: "Don Juan Manuel", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Obra maestra de la narrativa medieval formada por cincuenta y un ejemplos morales relatados por Patronio." },
+          { id: "med-7", displayDate: "s. XV, antes de 1479", sortYear: 1470, dateType: "Fecha aproximada", title: "Castillo de amor", authorId: "jorge-manrique", authorName: "Jorge Manrique", source: "Instituto Cervantes", desc: "Composición lírica cortesana que desarrolla la alegoría de la fortaleza interior asediada por el sentimiento amoroso." },
+          { id: "med-8", displayDate: "c. 1476-1479", sortYear: 1476, dateType: "Fecha aproximada", title: "Coplas por la muerte de su padre", authorId: "jorge-manrique", authorName: "Jorge Manrique", source: "Biblioteca Nacional de España (BNE)", desc: "Elegía en cuarenta coplas de pie quebrado que reflexiona sobre la fugacidad de la vida, la fortuna y la fama." }
+        ]
+      },
+      {
+        id: "renacimiento",
+        number: 2,
+        name: "Literatura del Renacimiento",
+        period: "Siglos XIV-XVI",
+        timelineNote: "Se extiende desde mediados del siglo XIV en Italia (aprox. 1338 con Petrarca) hasta finales del siglo XVI y albores del XVII (1597-1613 con Shakespeare y Cervantes).",
+        atmosphereTag: "Arquitectura clásica, imprentas y mármol humanista",
+        description: "Movimiento cultural nacido en Italia que recupera la herencia clásica grecolatina y sitúa al ser humano en el centro del universo (antropocentrismo), impulsado por el humanismo y la invención de la imprenta.",
+        whatMadeItSpecial: "La revolución de la imprenta que democratizó los libros, la idealización platónica del amor y la belleza armónica en la poesía, la exploración psicológica profunda del teatro isabelino y la creación de la primera novela moderna con el Quijote.",
+        colors: { primary: "#E07A5F", secondary: "#F2CC8F", bgHex: 0x1e130e, fogHex: 0x170e0a },
+        sceneType: "renaissance",
+        authors: [
+          { id: "petrarca", name: "Francesco Petrarca", bio: "Poeta y humanista italiano, padre del humanismo y creador de una lírica que influyó en toda Europa.", worksIds: ["ren-1", "ren-2"] },
+          { id: "erasmo", name: "Erasmo de Róterdam", bio: "Humanista, filólogo y teólogo neerlandés, figura central del pensamiento crítico renacentista europeo.", worksIds: ["ren-3", "ren-4"] },
+          { id: "shakespeare", name: "William Shakespeare", bio: "Dramaturgo y poeta inglés, considerado el escritor más importante en lengua inglesa y cumbre de la dramaturgia universal.", worksIds: ["ren-5", "ren-6"] },
+          { id: "cervantes", name: "Miguel de Cervantes", bio: "Novelista, poeta y dramaturgo español, máxima figura de la literatura española y creador de la novela moderna.", worksIds: ["ren-7", "ren-8"] }
+        ],
+        works: [
+          { id: "ren-1", displayDate: "1338 (inicio)", sortYear: 1338, dateType: "Fecha de inicio", title: "África", authorId: "petrarca", authorName: "Francesco Petrarca", source: "Treccani", desc: "Poema épico en hexámetros latinos dedicado a las hazañas de Escipión el Africano durante la segunda guerra púnica." },
+          { id: "ren-2", displayDate: "1374 (versión final)", sortYear: 1374, dateType: "Versión final", title: "Canzoniere", authorId: "petrarca", authorName: "Francesco Petrarca", source: "Treccani", desc: "Colección de 366 poemas en lengua vulgar inspirados en su amor por Laura, modelo de la lírica renacentista." },
+          { id: "ren-3", displayDate: "1500", sortYear: 1500, dateType: "Primera publicación", title: "Adagios", authorId: "erasmo", authorName: "Erasmo de Róterdam", source: "Biblioteca Nacional de España (BNE)", desc: "Compilación comentada de proverbios y sentencias de autores clásicos griegos y latinos." },
+          { id: "ren-4", displayDate: "1511", sortYear: 1511, dateType: "Primera publicación", title: "Elogio de la locura", authorId: "erasmo", authorName: "Erasmo de Róterdam", source: "Biblioteca Nacional de España (BNE)", desc: "Sátira humanista redactada en latín que critica con ironía las supersticiones y abusos de su tiempo." },
+          { id: "ren-5", displayDate: "1597", sortYear: 1597, dateType: "Primera publicación", title: "Romeo y Julieta", authorId: "shakespeare", authorName: "William Shakespeare", source: "Folger Shakespeare Library", desc: "Tragedia sobre dos jóvenes enamorados en Verona cuyas familias enfrentadas precipitan un desenlace fatal." },
+          { id: "ren-6", displayDate: "1603", sortYear: 1603, dateType: "Primera publicación", title: "Hamlet, príncipe de Dinamarca", authorId: "shakespeare", authorName: "William Shakespeare", source: "Folger Shakespeare Library", desc: "Tragedia filosófica sobre la duda, la venganza y la condición humana en la corte de Elsinor." },
+          { id: "ren-7", displayDate: "1605", sortYear: 1605, dateType: "Primera publicación", title: "El ingenioso hidalgo don Quijote de la Mancha", authorId: "cervantes", authorName: "Miguel de Cervantes", source: "Instituto Cervantes", desc: "Primera parte de la obra cumbre de las letras españolas y piedra fundacional de la novela polifónica moderna." },
+          { id: "ren-8", displayDate: "1613", sortYear: 1613, dateType: "Primera publicación", title: "Novelas ejemplares", authorId: "cervantes", authorName: "Miguel de Cervantes", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Serie de doce novelas cortas que introducen en castellano el arte narrativo breve con profunda observación humana." }
+        ]
+      },
+      {
+        id: "barroco",
+        number: 3,
+        name: "Literatura barroca",
+        period: "Siglo XVII",
+        timelineNote: "Corresponde al siglo XVII (aprox. 1600-1700), coincidendo en España con el máximo esplendor artístico del Siglo de Oro pese a la crisis política y económica.",
+        atmosphereTag: "Claroscuro dramático, cortinas teatrales y oro",
+        description: "Corriente marcada por el pesimismo existencial, el desengaño frente a las apariencias del mundo y una extraordinaria búsqueda de artificio, contraste y brillantez expresiva.",
+        whatMadeItSpecial: "La rivalidad estética entre el culteranismo (riqueza sensorial y mitológica de Góngora) y el conceptismo (ingenio agudo y doble sentido de Quevedo), además de la revolución teatral de los corrales de comedias con Lope de Vega y Calderón.",
+        colors: { primary: "#C9184A", secondary: "#D4AF37", bgHex: 0x190910, fogHex: 0x12060b },
+        sceneType: "baroque",
+        authors: [
+          { id: "gongora", name: "Luis de Góngora", bio: "Poeta y dramaturgo español del Siglo de Oro, máximo exponente de la corriente estética conocida como culteranismo.", worksIds: ["bar-1", "bar-2"] },
+          { id: "lope", name: "Lope de Vega", bio: "Renovador del teatro español mediante el Arte nuevo de hacer comedias, apodado el Fénix de los Ingenios.", worksIds: ["bar-3", "bar-4"] },
+          { id: "quevedo", name: "Francisco de Quevedo", bio: "Escritor maestro del conceptismo barroco, célebre por su agudeza satírica, política, moral y amorosa.", worksIds: ["bar-5", "bar-6"] },
+          { id: "calderon", name: "Pedro Calderón de la Barca", bio: "Dramaturgo barroco que llevó a su perfección filosófica y escénica la comedia y el auto sacramental.", worksIds: ["bar-7", "bar-8"] }
+        ],
+        works: [
+          { id: "bar-1", displayDate: "1612 (composición)", sortYear: 1612, dateType: "Fecha de composición", title: "Fábula de Polifemo y Galatea", authorId: "gongora", authorName: "Luis de Góngora", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Poema mitológico en octavas reales que despliega una brillante arquitectura metafórica y sensorial." },
+          { id: "bar-2", displayDate: "1613 (composición)", sortYear: 1613, dateType: "Fecha de composición", title: "Soledades", authorId: "gongora", authorName: "Luis de Góngora", source: "Instituto Cervantes", desc: "Obra cumbre de la lírica culterana que relata el peregrinar de un náufrago por una naturaleza idealizada." },
+          { id: "bar-3", displayDate: "1618", sortYear: 1618, dateType: "Primera publicación", title: "El perro del hortelano", authorId: "lope", authorName: "Lope de Vega", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Comedia palatina centrada en los dilemas del honor y el deseo de Diana, condesa de Belflor." },
+          { id: "bar-4", displayDate: "1619", sortYear: 1619, dateType: "Primera publicación", title: "Fuenteovejuna", authorId: "lope", authorName: "Lope de Vega", source: "Biblioteca Nacional de España (BNE)", desc: "Drama histórico sobre la rebelión colectiva de un pueblo frente a la tiranía del Comendador." },
+          { id: "bar-5", displayDate: "1626", sortYear: 1626, dateType: "Primera publicación", title: "Historia de la vida del Buscón, llamado don Pablos", authorId: "quevedo", authorName: "Francisco de Quevedo", source: "Biblioteca Nacional de España (BNE)", desc: "Novela picaresca de extraordinario ingenio verbal que retrata con sarcasmo la sociedad barroca." },
+          { id: "bar-6", displayDate: "1627", sortYear: 1627, dateType: "Primera publicación", title: "Los sueños", authorId: "quevedo", authorName: "Francisco de Quevedo", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Ciclo de cinco visiones satírico-morales sobre los oficios, vicios y vanidades humanas." },
+          { id: "bar-7", displayDate: "1636", sortYear: 1636, dateType: "Primera publicación", title: "La vida es sueño", authorId: "calderon", authorName: "Pedro Calderón de la Barca", source: "Instituto Cervantes", desc: "Drama filosófico sobre el libre albedrío, el destino y la fugacidad de la existencia encarnados en Segismundo." },
+          { id: "bar-8", displayDate: "1651", sortYear: 1651, dateType: "Primera publicación", title: "El alcalde de Zalamea", authorId: "calderon", authorName: "Pedro Calderón de la Barca", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Drama de honor en el que Pedro Crespo defiende la dignidad individual frente al abuso militar." }
+        ]
+      },
+      {
+        id: "neoclasicismo",
+        number: 4,
+        name: "Literatura del neoclasicismo",
+        period: "Siglo XVIII-inicios del XIX",
+        timelineNote: "Abarca todo el siglo XVIII —conocido como el Siglo de las Luces— y se prolonga hasta los inicios del siglo XIX (hasta aprox. 1806-1810).",
+        atmosphereTag: "Columnas griegas, razón ilustrada y bibliotecas clásicas",
+        description: "Expresión literaria de la Ilustración que rechaza los excesos imaginativos del Barroco y defiende el predominio de la razón, el espíritu crítico, la claridad y la utilidad educativa del arte.",
+        whatMadeItSpecial: "El auge del ensayo moderno y las enciclopedias para combatir la ignorancia (Feijoo, Voltaire, Samuel Johnson) y el regreso estricto a las normas clásicas de equilibrio y verosimilitud para educar a la sociedad desde el teatro (Moratín).",
+        colors: { primary: "#38BDF8", secondary: "#F8FAFC", bgHex: 0x0b1624, fogHex: 0x08101a },
+        sceneType: "neoclassical",
+        authors: [
+          { id: "feijoo", name: "Benito Jerónimo Feijoo", bio: "Ensayista y monje benedictino español, pionero de la Ilustración y combatiente contra las supersticiones.", worksIds: ["neo-1", "neo-3"] },
+          { id: "voltaire", name: "Voltaire", bio: "Escritor, historiador y filósofo francés, figura emblemática de la Ilustración europea y de la crítica filosófica.", worksIds: ["neo-2", "neo-5"] },
+          { id: "johnson", name: "Samuel Johnson", bio: "Poeta, ensayista, crítico literario y lexicógrafo inglés, pilar de la cultura ilustrada británica.", worksIds: ["neo-4", "neo-6"] },
+          { id: "moratin", name: "Leandro Fernández de Moratín", bio: "Dramaturgo y poeta español, máximo exponente de la comedia neoclásica sometida a las tres unidades.", worksIds: ["neo-7", "neo-8"] }
+        ],
+        works: [
+          { id: "neo-1", displayDate: "1726-1739", sortYear: 1726, dateType: "Intervalo de publicación", title: "Teatro crítico universal", authorId: "feijoo", authorName: "Benito Jerónimo Feijoo", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Obra monumental en ocho volúmenes dedicada a desengañar errores comunes mediante la razón y la experiencia." },
+          { id: "neo-2", displayDate: "1734", sortYear: 1734, dateType: "Primera publicación (ed. francesa)", title: "Cartas filosóficas (ed. francesa)", authorId: "voltaire", authorName: "Voltaire", source: "Biblioteca Nacional de España (BNE)", desc: "Ensayos sobre la sociedad, la ciencia y la tolerancia religiosa observadas por el autor en Inglaterra." },
+          { id: "neo-3", displayDate: "1742-1760", sortYear: 1742, dateType: "Intervalo de publicación", title: "Cartas eruditas y curiosas", authorId: "feijoo", authorName: "Benito Jerónimo Feijoo", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Cinco tomos de epístolas ensayísticas que amplían la divulgación científica y humanística de la Ilustración española." },
+          { id: "neo-4", displayDate: "1755", sortYear: 1755, dateType: "Primera publicación", title: "Diccionario de la lengua inglesa", authorId: "johnson", authorName: "Samuel Johnson", source: "Biblioteca Nacional de España (BNE)", desc: "Hito fundacional de la lexicografía moderna, fruto de nueve años de rigurosa investigación lingüística." },
+          { id: "neo-5", displayDate: "1759", sortYear: 1759, dateType: "Primera publicación", title: "Cándido, o el optimismo", authorId: "voltaire", authorName: "Voltaire", source: "Biblioteca Nacional de España (BNE)", desc: "Cuento filosófico satírico que cuestiona el optimismo metafísico frente a los males del mundo." },
+          { id: "neo-6", displayDate: "1759", sortYear: 1759, dateType: "Primera publicación", title: "La historia de Rasselas, príncipe de Abisinia", authorId: "johnson", authorName: "Samuel Johnson", source: "Biblioteca Nacional de España (BNE)", desc: "Apólogo filosófico sobre la búsqueda de la felicidad y los límites del deseo humano." },
+          { id: "neo-7", displayDate: "1792", sortYear: 1792, dateType: "Primera publicación", title: "La comedia nueva o El café", authorId: "moratin", authorName: "Leandro Fernández de Moratín", source: "Instituto Cervantes", desc: "Sátira teatral neoclásica contra los disparates dramáticos del teatro posbarroco decadente." },
+          { id: "neo-8", displayDate: "1806", sortYear: 1806, dateType: "Primera publicación", title: "El sí de las niñas", authorId: "moratin", authorName: "Leandro Fernández de Moratín", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Comedia ilustrada que defiende la libertad de elección matrimonial y la educación racional de los jóvenes." }
+        ]
+      },
+      {
+        id: "romanticismo",
+        number: 5,
+        name: "Literatura del romanticismo",
+        period: "Finales del XVIII-siglo XIX",
+        timelineNote: "Surge a finales del siglo XVIII en Alemania e Inglaterra y triunfa en España durante la primera mitad y mediados del siglo XIX (aprox. 1830-1880).",
+        atmosphereTag: "Bosques nocturnos, luna llena y atmósfera poética",
+        description: "Revolución estética y vital que antepone el sentimiento, la imaginación, el misterio y la libertad absoluta del individuo frente a las reglas racionales del Neoclasicismo.",
+        whatMadeItSpecial: "La exaltación de las pasiones desbordadas, la rebeldía frente a las normas sociales, el gusto por lo nocturno, las ruinas y las leyendas populares, y el nacimiento de la lírica intimista moderna con Bécquer y Rosalía de Castro.",
+        colors: { primary: "#A855F7", secondary: "#34D399", bgHex: 0x120d22, fogHex: 0x0d0919 },
+        sceneType: "romantic",
+        authors: [
+          { id: "espronceda", name: "José de Espronceda", bio: "Poeta romántico español por excelencia, símbolo de rebeldía política, lirismo apasionado y espíritu byroniano.", worksIds: ["rom-1", "rom-3"] },
+          { id: "zorrilla", name: "José Zorrilla", bio: "Poeta y dramaturgo español, creador del mito romántico español más universal en escena.", worksIds: ["rom-2", "rom-4"] },
+          { id: "becquer", name: "Gustavo Adolfo Bécquer", bio: "Poeta y narrador posromántico cuya lírica intimista inauguró la poesía española moderna.", worksIds: ["rom-5", "rom-7"] },
+          { id: "rosalia", name: "Rosalía de Castro", bio: "Poeta y novelista fundamental del Rexurdimento gallego y precursora de la lírica moderna en gallego y castellano.", worksIds: ["rom-6", "rom-8"] }
+        ],
+        works: [
+          { id: "rom-1", displayDate: "1840", sortYear: 1840, dateType: "Primera publicación", title: "El estudiante de Salamanca", authorId: "espronceda", authorName: "José de Espronceda", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Poema narrativo polimétrico sobre el libertino Félix de Montemar y su espectro nocturno." },
+          { id: "rom-2", displayDate: "1840-1842", sortYear: 1840, dateType: "Intervalo de publicación", title: "El zapatero y el rey (dos partes)", authorId: "zorrilla", authorName: "José Zorrilla", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Drama histórico ambientado en el reinado de Pedro I de Castilla que consolidó el éxito teatral de Zorrilla." },
+          { id: "rom-3", displayDate: "1840-1841", sortYear: 1840, dateType: "Publicación por entregas", title: "El diablo mundo (por entregas)", authorId: "espronceda", authorName: "José de Espronceda", source: "Biblioteca Nacional de España (BNE)", desc: "Ambicioso poema filosófico inacabado que incluye el célebre Canto a Teresa." },
+          { id: "rom-4", displayDate: "1844", sortYear: 1844, dateType: "Primera publicación", title: "Don Juan Tenorio", authorId: "zorrilla", authorName: "José Zorrilla", source: "Instituto Cervantes", desc: "Drama religioso-fantástico en verso donde el amor de doña Inés redime el alma del burlador." },
+          { id: "rom-5", displayDate: "1858-1864", sortYear: 1858, dateType: "Publicación en prensa", title: "Leyendas (publicación en prensa)", authorId: "becquer", authorName: "Gustavo Adolfo Bécquer", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Relatos poéticos impregnados de misterio, lo sobrenatural y la tradición popular española." },
+          { id: "rom-6", displayDate: "1863", sortYear: 1863, dateType: "Primera publicación", title: "Cantares gallegos", authorId: "rosalia", authorName: "Rosalía de Castro", source: "Biblioteca Nacional de España (BNE)", desc: "Obra fundacional del renacimiento literario gallego que dignifica la lengua y el alma popular de Galicia." },
+          { id: "rom-7", displayDate: "1871", sortYear: 1871, dateType: "Edición póstuma", title: "Rimas (edición póstuma)", authorId: "becquer", authorName: "Gustavo Adolfo Bécquer", source: "Instituto Cervantes", desc: "Breves poemas de intensa musicalidad sobre la creación poética, el amor y el desengaño." },
+          { id: "rom-8", displayDate: "1880", sortYear: 1880, dateType: "Primera publicación", title: "Follas novas", authorId: "rosalia", authorName: "Rosalía de Castro", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Poemario de honda introspección existencial y denuncia social de la emigración gallega." }
+        ]
+      },
+      {
+        id: "realismo",
+        number: 6,
+        name: "Literatura del realismo",
+        period: "Segunda mitad del siglo XIX",
+        timelineNote: "Se desarrolla durante la segunda mitad del siglo XIX (aprox. 1850-1900), en paralelo con la Revolución Industrial, el auge de la burguesía y la prensa periódica.",
+        atmosphereTag: "Ciudades decimonónicas, faroles, prensa y observación social",
+        description: "Corriente narrativa que abandona la fantasía romántica para retratar con objetividad, rigor documental y mirada crítica la sociedad contemporánea y la psicología cotidiana.",
+        whatMadeItSpecial: "El dominio absoluto de la novela como espejo de la vida burguesa y popular, la creación de personajes femeninos inolvidables de enorme complejidad psicológica (La Regenta, Fortunata y Jacinta) y la incorporación del método científico en el Naturalismo.",
+        colors: { primary: "#F59E0B", secondary: "#94A3B8", bgHex: 0x19140e, fogHex: 0x120f0a },
+        sceneType: "realism",
+        authors: [
+          { id: "galdos", name: "Benito Pérez Galdós", bio: "Novelista y dramaturgo español, máximo cronista literario del siglo XIX y renovador de la novela realista.", worksIds: ["rea-1", "rea-6"] },
+          { id: "valera", name: "Juan Valera", bio: "Escritor, diplomático y crítico literario español, maestro de la prosa elegante y el análisis psicológico.", worksIds: ["rea-2", "rea-8"] },
+          { id: "pardo-bazan", name: "Emilia Pardo Bazán", bio: "Novelista, ensayista y pionera del naturalismo y de los derechos de la mujer en España.", worksIds: ["rea-3", "rea-5"] },
+          { id: "clarin", name: "Leopoldo Alas «Clarín»", bio: "Narrador y crítico literario asturiano, autor de una de las cumbres indiscutibles de la novela europea.", worksIds: ["rea-4", "rea-7"] }
+        ],
+        works: [
+          { id: "rea-1", displayDate: "1873-1912", sortYear: 1873, dateType: "Intervalo de publicación", title: "Episodios nacionales", authorId: "galdos", authorName: "Benito Pérez Galdós", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Serie de cuarenta y seis novelas históricas que reconstruyen la historia española del siglo XIX." },
+          { id: "rea-2", displayDate: "1874", sortYear: 1874, dateType: "Primera publicación", title: "Pepita Jiménez", authorId: "valera", authorName: "Juan Valera", source: "Instituto Cervantes", desc: "Novela epistolar y psicológica sobre el conflicto entre la vocación religiosa y el amor humano." },
+          { id: "rea-3", displayDate: "1883", sortYear: 1883, dateType: "Primera publicación", title: "La tribuna", authorId: "pardo-bazan", authorName: "Emilia Pardo Bazán", source: "Biblioteca Nacional de España (BNE)", desc: "Primera novela social española protagonizada por obreras cigarreras de una fábrica coruñesa." },
+          { id: "rea-4", displayDate: "1884-1885", sortYear: 1884, dateType: "Intervalo de publicación", title: "La Regenta", authorId: "clarin", authorName: "Leopoldo Alas «Clarín»", source: "Instituto Cervantes", desc: "Obra maestra del realismo español que retrata las pasiones y la hipocresía moral en la ciudad de Vetusta." },
+          { id: "rea-5", displayDate: "1886", sortYear: 1886, dateType: "Primera publicación", title: "Los pazos de Ulloa", authorId: "pardo-bazan", authorName: "Emilia Pardo Bazán", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Novela naturalista sobre la decadencia de la aristocracia rural gallega y la fuerza de la naturaleza." },
+          { id: "rea-6", displayDate: "1886-1887", sortYear: 1886, dateType: "Intervalo de publicación", title: "Fortunata y Jacinta", authorId: "galdos", authorName: "Benito Pérez Galdós", source: "Biblioteca Nacional de España (BNE)", desc: "Vasto fresco madrileño articulado en torno a la historia de dos mujeres unidas por un destino trágico." },
+          { id: "rea-7", displayDate: "1891", sortYear: 1891, dateType: "Primera publicación", title: "Su único hijo", authorId: "clarin", authorName: "Leopoldo Alas «Clarín»", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Novela psicológica de fina ironía centrada en la figura de Bonifacio Reyes y la ilusión de la paternidad." },
+          { id: "rea-8", displayDate: "1895", sortYear: 1895, dateType: "Primera publicación", title: "Juanita la Larga", authorId: "valera", authorName: "Juan Valera", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Novela costumbrista ambientada en Andalucía que celebra la vitalidad y la dignidad femenina." }
+        ]
+      },
+      {
+        id: "modernismo",
+        number: 7,
+        name: "Literatura del modernismo",
+        period: "c. 1880-1920",
+        timelineNote: "Transcurre aproximadamente entre 1880 y 1920 (desde Ismaelillo de José Martí en 1882 hasta la obra póstuma de Amado Nervo en 1920).",
+        atmosphereTag: "Vitrales Art Nouveau, cisnes, plumas de pavo real y esmeralda",
+        description: "Primer gran movimiento literario originado en Hispanoamérica que transformó la poesía en lengua española mediante el culto a la belleza sensorial, la musicalidad y el cosmopolitismo.",
+        whatMadeItSpecial: "Por primera vez América lideró la renovación estética de toda la lengua española gracias a Rubén Darío y José Martí, llenando el verso de ritmo sinfónico, símbolos refinados (el cisne, el azul) y libertad métrica.",
+        colors: { primary: "#10B981", secondary: "#2DD4BF", bgHex: 0x071c18, fogHex: 0x051411 },
+        sceneType: "modernism",
+        authors: [
+          { id: "marti", name: "José Martí", bio: "Poeta, ensayista y pensador cubano, iniciador de la renovación modernista hispanoamericana.", worksIds: ["mod-1", "mod-3"] },
+          { id: "dario", name: "Rubén Darío", bio: "Poeta nicaragüense, máximo representante y líder indiscutible del modernismo literario en lengua española.", worksIds: ["mod-2", "mod-4"] },
+          { id: "lugones", name: "Leopoldo Lugones", bio: "Poeta, narrador y ensayista argentino, figura clave del modernismo y precursor de la vanguardia.", worksIds: ["mod-5", "mod-6"] },
+          { id: "nervo", name: "Amado Nervo", bio: "Poeta y prosista mexicano del modernismo, celebrado por su espiritualidad lírica y depuración expresiva.", worksIds: ["mod-7", "mod-8"] }
+        ],
+        works: [
+          { id: "mod-1", displayDate: "1882", sortYear: 1882, dateType: "Primera publicación", title: "Ismaelillo", authorId: "marti", authorName: "José Martí", source: "Instituto Cervantes", desc: "Poemario dedicado a su hijo que inaugura la sensibilidad estética y rítmica del modernismo." },
+          { id: "mod-2", displayDate: "1888", sortYear: 1888, dateType: "Primera publicación", title: "Azul...", authorId: "dario", authorName: "Rubén Darío", source: "Instituto Cervantes", desc: "Libro de cuentos y poemas publicado en Valparaíso que marcó el triunfo oficial del modernismo." },
+          { id: "mod-3", displayDate: "1891", sortYear: 1891, dateType: "Primera publicación", title: "Versos sencillos", authorId: "marti", authorName: "José Martí", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Poemario de cristalina transparencia expresiva y profundo compromiso ético y humano." },
+          { id: "mod-4", displayDate: "1896", sortYear: 1896, dateType: "Primera publicación", title: "Prosas profanas", authorId: "dario", authorName: "Rubén Darío", source: "Biblioteca Nacional de España (BNE)", desc: "Cima del modernismo esteticista, musical y cosmopolita de Rubén Darío." },
+          { id: "mod-5", displayDate: "1897", sortYear: 1897, dateType: "Primera publicación", title: "Las montañas del oro", authorId: "lugones", authorName: "Leopoldo Lugones", source: "Biblioteca Nacional de España (BNE)", desc: "Primer poemario de Lugones, caracterizado por su aliento épico, simbolismo y fuerza visionaria." },
+          { id: "mod-6", displayDate: "1909", sortYear: 1909, dateType: "Primera publicación", title: "Lunario sentimental", authorId: "lugones", authorName: "Leopoldo Lugones", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Poemario audaz que combina ironía, verso libre y metáforas lunares anticipando las vanguardias." },
+          { id: "mod-7", displayDate: "1918", sortYear: 1918, dateType: "Primera publicación", title: "Plenitud", authorId: "nervo", authorName: "Amado Nervo", source: "Enciclopedia de la Literatura en México (ELEM)", desc: "Colección de prosas poéticas y reflexiones filosóficas sobre la serenidad interior." },
+          { id: "mod-8", displayDate: "1920", sortYear: 1920, dateType: "Edición póstuma", title: "La amada inmóvil (póstuma)", authorId: "nervo", authorName: "Amado Nervo", source: "Enciclopedia de la Literatura en México (ELEM)", desc: "Elegía íntima dedicada a Ana Cecilia Luisa Daillez, publicada tras el fallecimiento del poeta." }
+        ]
+      },
+      {
+        id: "generacion-98",
+        number: 8,
+        name: "Generación del 98",
+        period: "1898-comienzos del siglo XX",
+        timelineNote: "Toma su nombre del año 1898 (pérdida de las últimas colonias españolas) y se extiende durante las primeras décadas del siglo XX (aprox. 1898-1936).",
+        atmosphereTag: "Paisajes castellanos, caminos rurales y reflexión filosófica",
+        description: "Grupo de escritores e intelectuales españoles conmovidos por la crisis moral, política y social de España tras el desastre de 1898, unidos por su preocupación existencial y regeneracionista.",
+        whatMadeItSpecial: "El redescubrimiento espiritual del paisaje austero de Castilla como símbolo del alma española, la renovación radical de la novela filosófica (la 'nivola' de Unamuno) y un estilo sobrio, hondo y cargado de preguntas sobre el sentido de la vida.",
+        colors: { primary: "#EA580C", secondary: "#FBBF24", bgHex: 0x1c1108, fogHex: 0x140c06 },
+        sceneType: "gen98",
+        authors: [
+          { id: "azorin", name: "Azorín (José Martínez Ruiz)", bio: "Novelista, ensayista y crítico literario español, maestro de la prosa precisa y evocadora del tiempo.", worksIds: ["g98-1", "g98-5"] },
+          { id: "machado", name: "Antonio Machado", bio: "Poeta español vinculado al 98, cuya obra evoluciona desde el simbolismo íntimo hacia la meditación castellana.", worksIds: ["g98-2", "g98-6"] },
+          { id: "baroja", name: "Pío Baroja", bio: "Novelista vasco de estilo directo y narratividad ágil, cronista del desengaño y la acción en la España moderna.", worksIds: ["g98-3", "g98-4"] },
+          { id: "unamuno", name: "Miguel de Unamuno", bio: "Filósofo, novelista, poeta y dramaturgo, figura central del pensamiento existencial español.", worksIds: ["g98-7", "g98-8"] }
+        ],
+        works: [
+          { id: "g98-1", displayDate: "1902", sortYear: 1902, dateType: "Primera publicación", title: "La voluntad", authorId: "azorin", authorName: "Azorín (José Martínez Ruiz)", source: "Instituto Cervantes", desc: "Novela autobiográfica y filosófica que inaugura la renovación narrativa de 1902." },
+          { id: "g98-2", displayDate: "1907", sortYear: 1907, dateType: "Primera publicación", title: "Soledades, galerías y otros poemas", authorId: "machado", authorName: "Antonio Machado", source: "Instituto Cervantes", desc: "Poemario simbolista centrado en el paso del tiempo, la memoria, el agua y el jardín interior." },
+          { id: "g98-3", displayDate: "1909", sortYear: 1909, dateType: "Primera publicación", title: "Zalacaín el aventurero", authorId: "baroja", authorName: "Pío Baroja", source: "Biblioteca Nacional de España (BNE)", desc: "Novela de acción ambientada en el País Vasco durante las guerras carlistas." },
+          { id: "g98-4", displayDate: "1911", sortYear: 1911, dateType: "Primera publicación", title: "El árbol de la ciencia", authorId: "baroja", authorName: "Pío Baroja", source: "Instituto Cervantes", desc: "Novela filosófica protagonizada por Andrés Hurtado que examina la crisis intelectual y social de España." },
+          { id: "g98-5", displayDate: "1912", sortYear: 1912, dateType: "Primera publicación", title: "Castilla", authorId: "azorin", authorName: "Azorín (José Martínez Ruiz)", source: "Biblioteca Virtual Miguel de Cervantes", desc: "Estampas literarias sobre los pueblos, trenes y paisajes castellanos atravesados por el tiempo." },
+          { id: "g98-6", displayDate: "1912", sortYear: 1912, dateType: "Primera publicación", title: "Campos de Castilla", authorId: "machado", authorName: "Antonio Machado", source: "Instituto Cervantes", desc: "Obra fundamental que funde el paisaje soriano con la preocupación histórica por España." },
+          { id: "g98-7", displayDate: "1914", sortYear: 1914, dateType: "Primera publicación", title: "Niebla", authorId: "unamuno", authorName: "Miguel de Unamuno", source: "Universidad de León / Cervantes", desc: "Nivola vanguardista donde el personaje Augusto Pérez se enfrenta a su propio autor." },
+          { id: "g98-8", displayDate: "1931", sortYear: 1931, dateType: "Primera publicación", title: "San Manuel Bueno, mártir", authorId: "unamuno", authorName: "Miguel de Unamuno", source: "Instituto Cervantes", desc: "Novela corta sobre el conflicto íntimo entre la fe, la duda existencial y la caridad pastoral." }
+        ]
+      },
+      {
+        id: "generacion-27",
+        number: 9,
+        name: "Generación del 27",
+        period: "1927-primera mitad del siglo XX",
+        timelineNote: "Recibe su nombre del tricentenario de Luis de Góngora en 1927 y abarca la primera mitad del siglo XX (aprox. 1920-1945), marcando la Edad de Plata española.",
+        atmosphereTag: "Surrealismo poético, geometrías oníricas y escena teatral",
+        description: "Brillante constelación de poetas y dramaturgos españoles que lograron el equilibrio perfecto entre la vanguardia europea (surrealismo, metáfora audaz) y la tradición clásica y popular española.",
+        whatMadeItSpecial: "Su capacidad irrepetible para unir el romancero popular y los clásicos del Siglo de Oro con el mundo onírico del surrealismo, alcanzando una calidad lírica y dramática universal con Lorca, Alberti, Cernuda y Aleixandre.",
+        colors: { primary: "#EC4899", secondary: "#8B5CF6", bgHex: 0x190b1e, fogHex: 0x120816 },
+        sceneType: "gen27",
+        authors: [
+          { id: "alberti", name: "Rafael Alberti", bio: "Poeta y dramaturgo gaditano del 27, autor de una obra versátil que abarca el neopopularismo y el surrealismo.", worksIds: ["g27-1", "g27-3"] },
+          { id: "lorca", name: "Federico García Lorca", bio: "Poeta y dramaturgo granadino, figura universal de la lírica y el teatro del siglo XX.", worksIds: ["g27-2", "g27-8"] },
+          { id: "cernuda", name: "Luis Cernuda", bio: "Poeta y crítico literario sevillano, explorador de la tensión entre el deseo humano y la realidad.", worksIds: ["g27-4", "g27-6"] },
+          { id: "aleixandre", name: "Vicente Aleixandre", bio: "Poeta español galardonado con el Premio Nobel de Literatura en 1977, maestro del verso libre surrealista.", worksIds: ["g27-5", "g27-7"] }
+        ],
+        works: [
+          { id: "g27-1", displayDate: "1925", sortYear: 1925, dateType: "Primera publicación", title: "Marinero en tierra", authorId: "alberti", authorName: "Rafael Alberti", source: "Instituto Cervantes", desc: "Poemario neopopularista premiado con el Premio Nacional de Literatura que evoca la bahía de Cádiz." },
+          { id: "g27-2", displayDate: "1928", sortYear: 1928, dateType: "Primera publicación", title: "Romancero gitano", authorId: "lorca", authorName: "Federico García Lorca", source: "Instituto Cervantes", desc: "Dieciocho romances que fusionan la tradición oral andaluza con audaces metáforas vanguardistas." },
+          { id: "g27-3", displayDate: "1929", sortYear: 1929, dateType: "Primera publicación", title: "Sobre los ángeles", authorId: "alberti", authorName: "Rafael Alberti", source: "Biblioteca Nacional de España (BNE)", desc: "Cumbre del surrealismo poético español escrita tras una profunda crisis espiritual." },
+          { id: "g27-4", displayDate: "1934", sortYear: 1934, dateType: "Primera publicación", title: "Donde habite el olvido", authorId: "cernuda", authorName: "Luis Cernuda", source: "Instituto Cervantes", desc: "Libro de intensa elegía amorosa inspirado en un verso de Gustavo Adolfo Bécquer." },
+          { id: "g27-5", displayDate: "1935", sortYear: 1935, dateType: "Primera publicación", title: "La destrucción o el amor", authorId: "aleixandre", authorName: "Vicente Aleixandre", source: "Instituto Cervantes", desc: "Poemario telúrico y surrealista que identifica la pasión amorosa con la fusión cósmica." },
+          { id: "g27-6", displayDate: "1936", sortYear: 1936, dateType: "Primera publicación", title: "La realidad y el deseo", authorId: "cernuda", authorName: "Luis Cernuda", source: "Biblioteca Nacional de España (BNE)", desc: "Obra poética reunida de Cernuda, ampliada sucesivamente a lo largo de toda su vida." },
+          { id: "g27-7", displayDate: "1944", sortYear: 1944, dateType: "Primera publicación", title: "Sombra del paraíso", authorId: "aleixandre", authorName: "Vicente Aleixandre", source: "Instituto Cervantes", desc: "Evocación luminosa de un mundo primigenio e inocente frente al dolor histórico de la posguerra." },
+          { id: "g27-8", displayDate: "1945", sortYear: 1945, dateType: "Publicación (escrita en 1936)", title: "La casa de Bernarda Alba (escrita en 1936)", authorId: "lorca", authorName: "Federico García Lorca", source: "Instituto Cervantes", desc: "Drama rural sobre el autoritarismo, la represión y el ansia de libertad en una casa enlutada." }
+        ]
+      },
+      {
+        id: "contemporanea",
+        number: 10,
+        name: "Literatura española contemporánea",
+        period: "1950-actualidad",
+        timelineNote: "Comienza tras la posguerra española alrededor de 1950 (1951 con La colmena de Cela) y llega hasta la actualidad del siglo XXI.",
+        atmosphereTag: "Bibliotecas modernas, memoria histórica y horizonte digital",
+        description: "Evolución narrativa desde el realismo social de posguerra y la renovación experimental de los años sesenta hasta la novela democrática de la memoria, la intimidad y la metaficción.",
+        whatMadeItSpecial: "La pluralidad de voces y técnicas narrativas: del retrato colectivo de la supervivencia en posguerra y el monólogo interior a la recuperación de la memoria histórica familiar y la reflexión psicológica sobre el tiempo y la identidad.",
+        colors: { primary: "#38BDF8", secondary: "#8B5CF6", bgHex: 0x081226, fogHex: 0x060d1c },
+        sceneType: "contemporary",
+        authors: [
+          { id: "cela", name: "Camilo José Cela", bio: "Narrador español, Premio Nobel de Literatura en 1989 y figura decisiva de la renovación novelística española.", worksIds: ["con-1", "con-3"] },
+          { id: "martin-gaite", name: "Carmen Martín Gaite", bio: "Novelista, ensayista y dramaturga salmantina, voz imprescindible de la narrativa española contemporánea.", worksIds: ["con-2", "con-4"] },
+          { id: "grandes", name: "Almudena Grandes", bio: "Escritora madrileña cuya narrativa explora con vigor emocional la intimidad y la memoria histórica de España.", worksIds: ["con-5", "con-8"] },
+          { id: "marias", name: "Javier Marías", bio: "Novelista y traductor madrileño, creador de una prosa reflexiva sobre el secreto, la culpa y el paso del tiempo.", worksIds: ["con-6", "con-7"] }
+        ],
+        works: [
+          { id: "con-1", displayDate: "1951", sortYear: 1951, dateType: "Primera publicación", title: "La colmena", authorId: "cela", authorName: "Camilo José Cela", source: "Instituto Cervantes", desc: "Novela coral estructurada en secuencias breves que retrata la supervivencia en el Madrid de 1943." },
+          { id: "con-2", displayDate: "1958", sortYear: 1958, dateType: "Primera publicación", title: "Entre visillos", authorId: "martin-gaite", authorName: "Carmen Martín Gaite", source: "Instituto Cervantes", desc: "Premio Nadal 1957; retrato sutil de la juventud femenina en una ciudad de provincias en los años cincuenta." },
+          { id: "con-3", displayDate: "1969", sortYear: 1969, dateType: "Primera publicación", title: "San Camilo, 1936: Vísperas, festividad y octava de San Camilo del año 1936 en Madrid", authorId: "cela", authorName: "Camilo José Cela", source: "Biblioteca Nacional de España (BNE)", desc: "Novela experimental escrita en monólogo interior continuo sobre el estallido de la Guerra Civil." },
+          { id: "con-4", displayDate: "1978", sortYear: 1978, dateType: "Primera publicación", title: "El cuarto de atrás", authorId: "martin-gaite", authorName: "Carmen Martín Gaite", source: "Instituto Cervantes", desc: "Obra maestra metaliteraria que entrelaza memoria personal, ensayo y diálogo nocturno." },
+          { id: "con-5", displayDate: "1989", sortYear: 1989, dateType: "Primera publicación", title: "Las edades de Lulú", authorId: "grandes", authorName: "Almudena Grandes", source: "Biblioteca Nacional de España (BNE)", desc: "Novela galardonada con el Premio La Sonrisa Vertical que marcó un hito en la narrativa española." },
+          { id: "con-6", displayDate: "1992", sortYear: 1992, dateType: "Primera publicación", title: "Corazón tan blanco", authorId: "marias", authorName: "Javier Marías", source: "Instituto Cervantes", desc: "Novela internacionalmente aclamada sobre los secretos familiares y el peso de aquello que se llega a saber." },
+          { id: "con-7", displayDate: "1994", sortYear: 1994, dateType: "Primera publicación", title: "Mañana en la batalla piensa en mí", authorId: "marias", authorName: "Javier Marías", source: "Instituto Cervantes", desc: "Relato introspectivo inspirado en Shakespeare sobre la muerte inesperada, el engaño y la memoria." },
+          { id: "con-8", displayDate: "2007", sortYear: 2007, dateType: "Primera publicación", title: "El corazón helado", authorId: "grandes", authorName: "Almudena Grandes", source: "Biblioteca Nacional de España (BNE)", desc: "Extensa saga familiar que reconstruye la historia española del siglo XX a través de dos estirpes." }
+        ]
+      }
+    ];
+
+    // =========================================================================
+    // 2. GENERADOR DE RETRATOS HISTÓRICOS SVG ARTÍSTICOS POR AUTOR
+    //    Garantiza carga instantánea, cero enlaces rotos y estética de grabado clásico
+    // =========================================================================
+    function generateAuthorPortraitSVG(authorName, primaryColor, secondaryColor) {
+      const initials = authorName
+        .split(' ')
+        .filter(w => w.length > 2 && !['del', 'las', 'los'].includes(w.toLowerCase()))
+        .slice(0, 2)
+        .map(w => w[0].toUpperCase())
+        .join('');
+
+      let hash = 0;
+      for (let i = 0; i < authorName.length; i++) {
+        hash = authorName.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const hueShift = Math.abs(hash % 30) - 15;
+      const hasBeard = Math.abs(hash % 3) === 0;
+      const isFemale = /Rosalía|Emilia|Carmen|Almudena/i.test(authorName);
+
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+          <defs>
+            <radialGradient id="bg-${Math.abs(hash)}" cx="50%" cy="35%" r="70%">
+              <stop offset="0%" stop-color="${primaryColor}" stop-opacity="0.45"/>
+              <stop offset="65%" stop-color="#121826" stop-opacity="0.95"/>
+              <stop offset="100%" stop-color="#080B14" stop-opacity="1"/>
+            </radialGradient>
+            <linearGradient id="goldFrame" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#FFF3C4"/>
+              <stop offset="50%" stop-color="${primaryColor}"/>
+              <stop offset="100%" stop-color="#785312"/>
+            </linearGradient>
+          </defs>
+          <rect width="200" height="200" fill="url(#bg-${Math.abs(hash)})"/>
+          <!-- Aureola ornamental clásica -->
+          <circle cx="100" cy="88" r="56" fill="none" stroke="url(#goldFrame)" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.65"/>
+          <circle cx="100" cy="88" r="48" fill="none" stroke="${secondaryColor}" stroke-width="0.8" opacity="0.4"/>
+          
+          <!-- Silueta busto editorial -->
+          <path d="M 42 195 C 45 148, 72 135, 100 135 C 128 135, 155 148, 158 195 Z" fill="#1E293B" stroke="url(#goldFrame)" stroke-width="1.5"/>
+          <!-- Cuello / Solapa -->
+          <path d="M 84 135 L 100 158 L 116 135 Z" fill="#F5F0E6" opacity="0.85"/>
+          
+          <!-- Cabello / Tocado -->
+          ${isFemale
+            ? `<path d="M 64 90 C 62 50, 138 50, 136 90 C 140 120, 132 136, 122 138 L 78 138 C 68 136, 60 120, 64 90 Z" fill="#27201C"/>`
+            : `<path d="M 68 85 C 68 52, 132 52, 132 85 C 132 72, 68 72, 68 85 Z" fill="#2A2421"/>`
+          }
+          
+          <!-- Rostro esculpido -->
+          <ellipse cx="100" cy="92" rx="27" ry="34" fill="#D8C3A5" stroke="#8C7355" stroke-width="1"/>
+          
+          <!-- Rasgos sutiles de grabado -->
+          <path d="M 86 85 Q 91 82 95 85" stroke="#3E3226" stroke-width="1.8" fill="none"/>
+          <path d="M 105 85 Q 109 82 114 85" stroke="#3E3226" stroke-width="1.8" fill="none"/>
+          <path d="M 100 86 L 98 100 L 102 101" stroke="#7A6248" stroke-width="1.4" fill="none"/>
+          <path d="M 92 110 Q 100 113 108 110" stroke="#6B4E3D" stroke-width="1.6" fill="none"/>
+          
+          ${(!isFemale && hasBeard) ? `<path d="M 75 98 C 76 125, 124 125, 125 98 C 118 116, 82 116, 75 98 Z" fill="#3B322C" opacity="0.85"/>` : ''}
+          
+          <!-- Monograma inferior -->
+          <rect x="65" y="164" width="70" height="22" rx="11" fill="#080B14" stroke="url(#goldFrame)" stroke-width="1.2"/>
+          <text x="100" y="179" text-anchor="middle" fill="#F5F0E6" font-family="Cinzel, serif" font-size="11" font-weight="700" letter-spacing="2">${initials}</text>
+        </svg>
+      `;
+      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.trim());
+    }
+
+    // Pre-calcular retratos y mapas planos para búsqueda ultrarrápida
+    // Usar la ilustraci?n original cuando todav?a no hay una foto del autor.
+    const portraitFallbacks = new Map();
+    document.addEventListener('error', event => {
+      const img = event.target;
+      if (!(img instanceof HTMLImageElement)) return;
+      const fallback = portraitFallbacks.get(img.getAttribute('src')) || portraitFallbacks.get(img.src);
+      if (fallback) img.src = fallback;
+    }, true);
+
+    const ALL_AUTHORS = [];
+    const ALL_WORKS = [];
+    LITERARY_DATA.forEach(era => {
+      era.authors.forEach(author => {
+        author.eraId = era.id;
+        author.eraName = era.name;
+        author.eraPeriod = era.period;
+        author.colors = era.colors;
+        const fallback = generateAuthorPortraitSVG(author.name, era.colors.primary, era.colors.secondary);
+        author.portrait = `imagenes/autores/${author.id}.jpg`;
+        portraitFallbacks.set(author.portrait, fallback);
+        portraitFallbacks.set(new URL(author.portrait, document.baseURI).href, fallback);
+        ALL_AUTHORS.push(author);
+      });
+      era.works.forEach(work => {
+        work.eraId = era.id;
+        work.eraName = era.name;
+        work.eraPeriod = era.period;
+        work.colors = era.colors;
+        const authorObj = era.authors.find(a => a.id === work.authorId);
+        work.authorPortrait = authorObj ? authorObj.portrait : '';
+        ALL_WORKS.push(work);
+      });
+    });
+
+    // Recuperar los retratos de las fichas de Wikipedia en una sola consulta.
+    // Los t?tulos especiales evitan ambig?edades o nombres abreviados.
+    async function loadWikipediaPortraits() {
+      const titles = {
+        'alfonso-x': 'Alfonso X de Castilla',
+        'juan-manuel': 'Don Juan Manuel',
+        'clarin': 'Leopoldo Alas',
+        'azorin': 'Azor?n'
+      };
+      const requested = ALL_AUTHORS.map(author => ({
+        author, title: titles[author.id] || author.name
+      }));
+      const params = new URLSearchParams({
+        action: 'query', format: 'json', formatversion: '2', origin: '*',
+        prop: 'pageimages', piprop: 'thumbnail', pithumbsize: '400',
+        pilimit: '50', redirects: '1', titles: requested.map(item => item.title).join('|')
+      });
+      try {
+        const response = await fetch(`https://es.wikipedia.org/w/api.php?${params}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        const changes = [...(data.query?.normalized || []), ...(data.query?.redirects || [])];
+        const pages = data.query?.pages || [];
+        requested.forEach(({author, title}) => {
+          let resolved = title;
+          for (let i = 0; i < changes.length; i++) {
+            const change = changes.find(entry => entry.from === resolved);
+            if (!change) break;
+            resolved = change.to;
+          }
+          const image = pages.find(page => page.title === resolved)?.thumbnail?.source;
+          if (!image) return;
+          const oldPortrait = author.portrait;
+          const oldAbsolute = new URL(oldPortrait, document.baseURI).href;
+          const fallback = portraitFallbacks.get(oldPortrait);
+          // Si falla el enlace remoto, intentar la foto local y luego la ilustraci?n.
+          portraitFallbacks.set(image, oldPortrait);
+          author.portrait = image;
+          ALL_WORKS.filter(work => work.authorId === author.id).forEach(work => {
+            work.authorPortrait = image;
+          });
+          document.querySelectorAll('img').forEach(img => {
+            if (img.src === oldAbsolute || img.src === fallback) img.src = image;
+          });
+        });
+      } catch (error) {
+        console.warn('No se pudieron cargar los retratos de Wikipedia:', error);
+      }
+    }
+    loadWikipediaPortraits();
+
+    // =========================================================================
+    // 3. MOTOR DE SONIDO AMBIENTAL SINTETIZADO (WEB AUDIO API - SIN DEPENDENCIAS)
+    // =========================================================================
+    class AmbientSoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = false;
+        this.volume = 0.35;
+        this.masterGain = null;
+        this.oscillators = [];
+      }
+
+      init() {
+        if (this.ctx) return;
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        this.ctx = new AudioCtx();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0;
+        this.masterGain.connect(this.ctx.destination);
+
+        // Acorde ambiental cálido de biblioteca/museo (quinta justa + novena suave)
+        const freqs = [110, 164.81, 220, 246.94];
+        freqs.forEach((f, idx) => {
+          const osc = this.ctx.createOscillator();
+          const filter = this.ctx.createBiquadFilter();
+          const oscGain = this.ctx.createGain();
+
+          osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
+          osc.frequency.value = f;
+          filter.type = 'lowpass';
+          filter.frequency.value = 380;
+          oscGain.gain.value = 0.12 / (idx + 1);
+
+          osc.connect(filter);
+          filter.connect(oscGain);
+          oscGain.connect(this.masterGain);
+          osc.start();
+          this.oscillators.push({ osc, filter });
+        });
+      }
+
+      toggle() {
+        this.init();
+        if (!this.ctx) return false;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        this.enabled = !this.enabled;
+        this.masterGain.gain.setTargetAtTime(this.enabled ? this.volume * 0.25 : 0, this.ctx.currentTime, 0.4);
+        return this.enabled;
+      }
+
+      setVolume(val) {
+        this.volume = parseFloat(val);
+        if (this.enabled && this.masterGain) {
+          this.masterGain.gain.setTargetAtTime(this.volume * 0.25, this.ctx.currentTime, 0.2);
+        }
+      }
+
+      updateEraTone(eraIndex) {
+        if (!this.ctx || !this.oscillators.length) return;
+        const baseNotes = [110, 123.47, 130.81, 146.83, 110, 130.81, 164.81, 146.83, 174.61, 196.00];
+        const base = baseNotes[eraIndex] || 110;
+        const ratios = [1, 1.5, 2, 2.25];
+        this.oscillators.forEach((item, i) => {
+          item.osc.frequency.setTargetAtTime(base * ratios[i], this.ctx.currentTime, 0.8);
+        });
+      }
+
+      playPageTurn() {
+        if (!this.enabled || !this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(320, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.18);
+        g.gain.setValueAtTime(this.volume * 0.15, this.ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
+        osc.connect(g);
+        g.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.19);
+      }
+    }
+
+    // =========================================================================
+    // 4. ESCENA TRIDIMENSIONAL EN WEBGL (THREE.JS)
+    // =========================================================================
+    class LiteraryUniverse3D {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.scene = new THREE.Scene();
+        this.scene.fog = new THREE.FogExp2(0x080B14, 0.016);
+
+        this.camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 450);
+        this.camera.position.set(0, 2.2, 22);
+
+        this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.15;
+
+        this.stationSpacing = 42;
+        this.stations = [];
+        this.floatingBooks = [];
+        this.mouse = { x: 0, y: 0 };
+        this.targetCameraZ = 22;
+        this.isIntroActive = true;
+        this.clock = new THREE.Clock();
+
+        this.setupLights();
+        this.createHeroBook();
+        this.createStarAndGoldDust();
+        this.createTimelineRiver();
+        this.createTenStations();
+
+        window.addEventListener('resize', () => this.onResize());
+        window.addEventListener('mousemove', (e) => {
+          this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+          this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        });
+      }
+
+      setupLights() {
+        this.ambientLight = new THREE.AmbientLight(0xf5f0e6, 0.55);
+        this.scene.add(this.ambientLight);
+
+        this.heroLight = new THREE.PointLight(0xD4AF37, 2.5, 45);
+        this.heroLight.position.set(0, 6, 16);
+        this.scene.add(this.heroLight);
+
+        this.dirLight = new THREE.DirectionalLight(0xffeedd, 1.1);
+        this.dirLight.position.set(10, 20, 15);
+        this.scene.add(this.dirLight);
+      }
+
+      // Gran libro antiguo 3D suspendido en la pantalla de inicio
+      createHeroBook() {
+        this.heroBookGroup = new THREE.Group();
+        this.heroBookGroup.position.set(0, 1.4, 12.5);
+
+        const coverMat = new THREE.MeshStandardMaterial({
+          color: 0x3b1d14,
+          roughness: 0.45,
+          metalness: 0.35
+        });
+        const goldMat = new THREE.MeshStandardMaterial({
+          color: 0xD4AF37,
+          roughness: 0.25,
+          metalness: 0.85,
+          emissive: 0x4a3505,
+          emissiveIntensity: 0.35
+        });
+        const pageMat = new THREE.MeshStandardMaterial({
+          color: 0xf5f0e6,
+          roughness: 0.8
+        });
+
+        // Tapa trasera
+        const backCover = new THREE.Mesh(new THREE.BoxGeometry(3.4, 4.6, 0.14), coverMat);
+        backCover.position.z = -0.22;
+        this.heroBookGroup.add(backCover);
+
+        // Bloque de páginas
+        const pages = new THREE.Mesh(new THREE.BoxGeometry(3.2, 4.4, 0.34), pageMat);
+        this.heroBookGroup.add(pages);
+
+        // Tapa delantera articulada (pivote izquierdo)
+        this.frontCoverPivot = new THREE.Group();
+        this.frontCoverPivot.position.set(-1.7, 0, 0.22);
+        const frontCover = new THREE.Mesh(new THREE.BoxGeometry(3.4, 4.6, 0.14), coverMat);
+        frontCover.position.set(1.7, 0, 0);
+        this.frontCoverPivot.add(frontCover);
+
+        // Marco dorado ornamental en la portada
+        const ornament = new THREE.Mesh(new THREE.RingGeometry(0.65, 0.82, 32), goldMat);
+        ornament.position.set(1.7, 0.2, 0.08);
+        this.frontCoverPivot.add(ornament);
+
+        const borderTop = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.08, 0.04), goldMat);
+        borderTop.position.set(1.7, 1.95, 0.08);
+        this.frontCoverPivot.add(borderTop);
+
+        const borderBottom = borderTop.clone();
+        borderBottom.position.y = -1.95;
+        this.frontCoverPivot.add(borderBottom);
+
+        this.heroBookGroup.add(this.frontCoverPivot);
+
+        // Hojas volando alrededor del libro
+        this.flyingPages = [];
+        const leafGeo = new THREE.PlaneGeometry(0.75, 1.05, 4, 4);
+        for (let i = 0; i < 16; i++) {
+          const leaf = new THREE.Mesh(leafGeo, new THREE.MeshStandardMaterial({
+            color: 0xf5f0e6,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.78
+          }));
+          const angle = (i / 16) * Math.PI * 2;
+          const radius = 3.2 + Math.random() * 4.5;
+          leaf.position.set(
+            Math.cos(angle) * radius,
+            (Math.random() - 0.5) * 4.5,
+            10 + Math.sin(angle) * radius
+          );
+          leaf.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+          leaf.userData = { angle, radius, speed: 0.3 + Math.random() * 0.4, yOffset: leaf.position.y };
+          this.scene.add(leaf);
+          this.flyingPages.push(leaf);
+        }
+
+        this.scene.add(this.heroBookGroup);
+      }
+
+      // Partículas doradas y polvo estelar
+      createStarAndGoldDust() {
+        const count = 1800;
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+        const c1 = new THREE.Color(0xD4AF37);
+        const c2 = new THREE.Color(0x38BDF8);
+        const c3 = new THREE.Color(0xF5F0E6);
+
+        for (let i = 0; i < count; i++) {
+          positions[i * 3] = (Math.random() - 0.5) * 75;
+          positions[i * 3 + 1] = (Math.random() - 0.5) * 45;
+          positions[i * 3 + 2] = 30 - Math.random() * 460;
+
+          const pick = i % 3 === 0 ? c1 : (i % 3 === 1 ? c2 : c3);
+          colors[i * 3] = pick.r;
+          colors[i * 3 + 1] = pick.g;
+          colors[i * 3 + 2] = pick.b;
+        }
+
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const mat = new THREE.PointsMaterial({
+          size: 0.24,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.85,
+          blending: THREE.AdditiveBlending
+        });
+
+        this.particles = new THREE.Points(geo, mat);
+        this.scene.add(this.particles);
+      }
+
+      // Línea temporal luminosa continua que conecta las 10 épocas en profundidad
+      createTimelineRiver() {
+        const points = [];
+        for (let i = 0; i <= 10; i++) {
+          const z = 10 - i * this.stationSpacing;
+          const x = Math.sin(i * 0.65) * 2.4;
+          points.push(new THREE.Vector3(x, -2.6, z));
+        }
+        const curve = new THREE.CatmullRomCurve3(points);
+        const tubeGeo = new THREE.TubeGeometry(curve, 180, 0.09, 12, false);
+        const tubeMat = new THREE.MeshBasicMaterial({
+          color: 0xD4AF37,
+          transparent: true,
+          opacity: 0.75
+        });
+        this.timelineTube = new THREE.Mesh(tubeGeo, tubeMat);
+        this.scene.add(this.timelineTube);
+
+        // Sendero arquitectónico translúcido debajo de la línea de luz
+        const pathGeo = new THREE.TubeGeometry(curve, 180, 1.35, 8, false);
+        const pathMat = new THREE.MeshStandardMaterial({
+          color: 0x101827,
+          roughness: 0.3,
+          metalness: 0.7,
+          transparent: true,
+          opacity: 0.45,
+          wireframe: true
+        });
+        this.scene.add(new THREE.Mesh(pathGeo, pathMat));
+      }
+
+      // Construcción de las 10 estaciones históricas con ambientación propia
+      createTenStations() {
+        const bookGeo = new THREE.BoxGeometry(0.65, 0.9, 0.14);
+
+        LITERARY_DATA.forEach((era, idx) => {
+          const zPos = -idx * this.stationSpacing;
+          const xOffset = Math.sin(idx * 0.65) * 2.4;
+          const group = new THREE.Group();
+          group.position.set(xOffset, 0, zPos);
+
+          const primaryColor = new THREE.Color(era.colors.primary);
+          const secondaryColor = new THREE.Color(era.colors.secondary);
+
+          // Portal monumental de la época
+          const portalGeo = new THREE.TorusGeometry(6.8, 0.16, 16, 64);
+          const portalMat = new THREE.MeshStandardMaterial({
+            color: primaryColor,
+            emissive: primaryColor,
+            emissiveIntensity: 0.45,
+            roughness: 0.25,
+            metalness: 0.85
+          });
+          const portal = new THREE.Mesh(portalGeo, portalMat);
+          group.add(portal);
+
+          // Anillo interior rotatorio
+          const innerRing = new THREE.Mesh(
+            new THREE.TorusGeometry(5.9, 0.06, 12, 48),
+            new THREE.MeshBasicMaterial({ color: secondaryColor, transparent: true, opacity: 0.55 })
+          );
+          group.add(innerRing);
+
+          // Luz puntual específica de la época
+          const eraLight = new THREE.PointLight(primaryColor, 2.2, 34);
+          eraLight.position.set(0, 3.5, 2);
+          group.add(eraLight);
+
+          // Elementos arquitectónicos/simbólicos según la época
+          this.addEraProps(group, era.sceneType, primaryColor, secondaryColor);
+
+          // 8 Libros 3D orbitales correspondientes a las 8 obras de la época
+          const eraBooks = [];
+          era.works.forEach((work, wIdx) => {
+            const angle = (wIdx / 8) * Math.PI * 2;
+            const radius = 4.3 + (wIdx % 2) * 0.85;
+            const bMat = new THREE.MeshStandardMaterial({
+              color: wIdx % 2 === 0 ? primaryColor : secondaryColor,
+              roughness: 0.4,
+              metalness: 0.5
+            });
+            const bookMesh = new THREE.Mesh(bookGeo, bMat);
+            bookMesh.position.set(
+              Math.cos(angle) * radius,
+              Math.sin(angle) * (radius * 0.65) + 0.4,
+              (wIdx - 3.5) * 1.1
+            );
+            bookMesh.rotation.set(0.2, angle + Math.PI / 2, 0.1);
+            bookMesh.userData = { baseY: bookMesh.position.y, phase: wIdx * 0.8 };
+            group.add(bookMesh);
+            eraBooks.push(bookMesh);
+            this.floatingBooks.push(bookMesh);
+          });
+
+          this.scene.add(group);
+          this.stations.push({ group, portal, innerRing, zPos, eraBooks, era });
+        });
+      }
+
+      addEraProps(group, type, primaryColor, secondaryColor) {
+        const mat1 = new THREE.MeshStandardMaterial({ color: primaryColor, roughness: 0.45, metalness: 0.6 });
+        const mat2 = new THREE.MeshStandardMaterial({ color: secondaryColor, roughness: 0.5, metalness: 0.4 });
+
+        if (type === 'medieval' || type === 'renaissance' || type === 'neoclassical') {
+          // Columnas / Torres históricas laterales
+          const colGeo = new THREE.CylinderGeometry(0.45, 0.55, 8.5, 16);
+          const leftCol = new THREE.Mesh(colGeo, mat2);
+          leftCol.position.set(-7.8, 0.5, -1.5);
+          const rightCol = leftCol.clone();
+          rightCol.position.x = 7.8;
+          group.add(leftCol, rightCol);
+        } else if (type === 'romantic' || type === 'gen98') {
+          // Siluetas de montañas / lomas castellanas en el horizonte lateral
+          const peakGeo = new THREE.ConeGeometry(4.2, 7.5, 5);
+          const m1 = new THREE.Mesh(peakGeo, mat2);
+          m1.position.set(-10.5, -1.5, -4);
+          const m2 = new THREE.Mesh(peakGeo, mat1);
+          m2.position.set(10.5, -1.8, -5);
+          group.add(m1, m2);
+        } else if (type === 'gen27' || type === 'contemporary') {
+          // Formas geométricas surrealistas / paneles holográficos flotantes
+          const octa = new THREE.Mesh(new THREE.OctahedronGeometry(1.3), mat1);
+          octa.position.set(-8.2, 3.2, -1);
+          const ico = new THREE.Mesh(new THREE.IcosahedronGeometry(1.2), mat2);
+          ico.position.set(8.2, 2.8, -1);
+          group.add(octa, ico);
+        } else {
+          // Candelabros / Faroles / Ornamentos Art Nouveau
+          const sphereGeo = new THREE.SphereGeometry(0.55, 16, 16);
+          const s1 = new THREE.Mesh(sphereGeo, mat1);
+          s1.position.set(-7.6, 2.4, 0);
+          const s2 = s1.clone();
+          s2.position.x = 7.6;
+          group.add(s1, s2);
+        }
+      }
+
+      openHeroBookAndEnter(onComplete) {
+        this.isIntroActive = false;
+        gsap.to(this.frontCoverPivot.rotation, {
+          y: -Math.PI * 0.85,
+          duration: 1.2,
+          ease: 'power3.inOut'
+        });
+        gsap.to(this.camera.position, {
+          z: 8.5,
+          y: 1.2,
+          duration: 1.6,
+          ease: 'power2.inOut',
+          onComplete: () => {
+            this.heroBookGroup.visible = false;
+            this.flyingPages.forEach(p => p.visible = false);
+            if (onComplete) onComplete();
+          }
+        });
+      }
+
+      skipIntroImmediate() {
+        this.isIntroActive = false;
+        this.heroBookGroup.visible = false;
+        this.flyingPages.forEach(p => p.visible = false);
+        this.camera.position.set(0, 1.2, 8.5);
+      }
+
+      showIntroAgain() {
+        this.isIntroActive = true;
+        this.heroBookGroup.visible = true;
+        this.flyingPages.forEach(p => p.visible = true);
+        gsap.to(this.frontCoverPivot.rotation, { y: 0, duration: 0.8 });
+        gsap.to(this.camera.position, { x: 0, y: 2.2, z: 22, duration: 1.2, ease: 'power2.out' });
+      }
+
+      flyToEra(eraIndex) {
+        const station = this.stations[eraIndex];
+        if (!station) return;
+        const targetZ = station.zPos + 9.2;
+        const targetX = station.group.position.x;
+
+        gsap.to(this.camera.position, {
+          x: targetX,
+          y: 1.1,
+          z: targetZ,
+          duration: 1.35,
+          ease: 'power3.inOut'
+        });
+
+        // Actualizar atmósfera lumínica y niebla
+        const bgCol = new THREE.Color(station.era.colors.bgHex);
+        const fogCol = new THREE.Color(station.era.colors.fogHex);
+        const accentCol = new THREE.Color(station.era.colors.primary);
+
+        gsap.to(this.scene.fog.color, { r: fogCol.r, g: fogCol.g, b: fogCol.b, duration: 1.2 });
+        this.renderer.setClearColor(bgCol, 1);
+        gsap.to(this.heroLight.color, { r: accentCol.r, g: accentCol.g, b: accentCol.b, duration: 1.2 });
+      }
+
+      onResize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      animate() {
+        requestAnimationFrame(() => this.animate());
+        const t = this.clock.getElapsedTime();
+
+        if (this.isIntroActive) {
+          this.heroBookGroup.position.y = 1.4 + Math.sin(t * 1.4) * 0.25;
+          this.heroBookGroup.rotation.y = Math.sin(t * 0.6) * 0.22 + this.mouse.x * 0.25;
+          this.heroBookGroup.rotation.x = Math.cos(t * 0.5) * 0.08 - this.mouse.y * 0.15;
+
+          this.flyingPages.forEach(leaf => {
+            const d = leaf.userData;
+            const a = d.angle + t * d.speed;
+            leaf.position.x = Math.cos(a) * d.radius;
+            leaf.position.z = 12 + Math.sin(a) * d.radius;
+            leaf.position.y = d.yOffset + Math.sin(t * 1.5 + d.angle) * 0.5;
+            leaf.rotation.x += 0.01;
+            leaf.rotation.y += 0.015;
+          });
+        } else {
+          // Parallax suave con cursor
+          this.camera.rotation.y = THREE.MathUtils.lerp(this.camera.rotation.y, -this.mouse.x * 0.06, 0.05);
+          this.camera.rotation.x = THREE.MathUtils.lerp(this.camera.rotation.x, this.mouse.y * 0.04, 0.05);
+        }
+
+        // Rotación sutil de portales y libros orbitales
+        this.stations.forEach((st, idx) => {
+          st.innerRing.rotation.z = t * 0.25 * (idx % 2 === 0 ? 1 : -1);
+          st.eraBooks.forEach(book => {
+            book.position.y = book.userData.baseY + Math.sin(t * 1.8 + book.userData.phase) * 0.18;
+            book.rotation.y += 0.008;
+          });
+        });
+
+        this.particles.rotation.z = t * 0.015;
+        this.renderer.render(this.scene, this.camera);
+      }
+    }
+
+    // =========================================================================
+    // 5. CONTROLADOR PRINCIPAL DE LA APLICACIÓN INTERACTIVA
+    // =========================================================================
+    class LiteratureTimelineApp {
+      constructor() {
+        this.currentEraIndex = 0;
+        this.currentMode = 'immersive';
+        this.panoramicZoom = 1;
+        this.presAutoplay = false;
+        this.presInterval = null;
+        this.presSpeed = 5000;
+        this.wheelLock = false;
+        this.touchStartY = 0;
+
+        this.soundEngine = new AmbientSoundEngine();
+        this.universe3D = new LiteraryUniverse3D(document.getElementById('webgl-canvas'));
+
+        this.initUI();
+        this.bindEvents();
+        this.animateIntroCounters();
+        this.universe3D.animate();
+      }
+
+      initUI() {
+        this.buildTimelineNodes();
+        this.populateFilterDropdowns();
+        this.renderImmersiveEra(0);
+        this.renderPanoramicView();
+        this.renderAuthorsGallery('all');
+        this.renderLibraryView('all');
+        this.renderPresentationSlide(0);
+        this.renderPrintView();
+        lucide.createIcons();
+      }
+
+      animateIntroCounters() {
+        const animateNum = (elId, target) => {
+          const el = document.getElementById(elId);
+          const obj = { val: 0 };
+          gsap.to(obj, {
+            val: target,
+            duration: 2,
+            ease: 'power2.out',
+            onUpdate: () => { el.textContent = Math.round(obj.val); }
+          });
+        };
+        animateNum('counter-movements', 10);
+        animateNum('counter-authors', 40);
+        animateNum('counter-works', 80);
+      }
+
+      bindEvents() {
+        // Botón Comenzar el Viaje
+        document.getElementById('btn-start-journey').addEventListener('click', () => {
+          this.soundEngine.playPageTurn();
+          const intro = document.getElementById('intro-screen');
+          intro.style.opacity = '0';
+          intro.style.pointerEvents = 'none';
+
+          this.universe3D.openHeroBookAndEnter(() => {
+            intro.classList.add('hidden');
+            this.revealMainHUD();
+            this.goToEra(0);
+          });
+        });
+
+        // Botón Omitir Introducción
+        document.getElementById('btn-skip-intro').addEventListener('click', () => {
+          const intro = document.getElementById('intro-screen');
+          intro.classList.add('hidden');
+          this.universe3D.skipIntroImmediate();
+          this.revealMainHUD();
+          this.goToEra(0);
+        });
+
+        // Rueda del ratón para viajar entre épocas en Modo 3D
+        window.addEventListener('wheel', (e) => {
+          if (this.universe3D.isIntroActive || this.currentMode !== 'immersive') return;
+          if (this.isAnyModalOpen()) return;
+          // Evitar secuestrar scroll si el cursor está dentro de una lista con scroll propio
+          const scrollable = e.target.closest('.overflow-y-auto');
+          if (scrollable && scrollable.scrollHeight > scrollable.clientHeight) return;
+
+          if (this.wheelLock) return;
+          if (Math.abs(e.deltaY) > 25) {
+            this.wheelLock = true;
+            if (e.deltaY > 0) this.nextEra();
+            else this.prevEra();
+            setTimeout(() => { this.wheelLock = false; }, 750);
+          }
+        }, { passive: true });
+
+        // Navegación por teclado (Flechas y Escape)
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            this.closeWorkModal();
+            this.closeAuthorModal();
+            this.closeEraDetailModal();
+            document.getElementById('search-modal').classList.add('hidden');
+            document.getElementById('search-modal').classList.remove('flex');
+            document.getElementById('sources-modal').classList.add('hidden');
+            document.getElementById('sources-modal').classList.remove('flex');
+          }
+          if (this.universe3D.isIntroActive || this.isAnyModalOpen()) return;
+          if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            if (this.currentMode === 'immersive') this.nextEra();
+            if (this.currentMode === 'presentation') this.presNext();
+          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            if (this.currentMode === 'immersive') this.prevEra();
+            if (this.currentMode === 'presentation') this.presPrev();
+          }
+        });
+
+        // Gestos táctiles para dispositivos móviles
+        window.addEventListener('touchstart', (e) => {
+          this.touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        window.addEventListener('touchend', (e) => {
+          if (this.universe3D.isIntroActive || this.currentMode !== 'immersive' || this.isAnyModalOpen()) return;
+          const scrollable = e.target.closest('.overflow-y-auto');
+          if (scrollable && scrollable.scrollHeight > scrollable.clientHeight) return;
+          const diff = this.touchStartY - e.changedTouches[0].clientY;
+          if (Math.abs(diff) > 55) {
+            if (diff > 0) this.nextEra();
+            else this.prevEra();
+          }
+        }, { passive: true });
+      }
+
+      isAnyModalOpen() {
+        return !document.getElementById('work-modal').classList.contains('hidden') ||
+               !document.getElementById('author-modal').classList.contains('hidden') ||
+               !document.getElementById('era-detail-modal').classList.contains('hidden') ||
+               !document.getElementById('search-modal').classList.contains('hidden') ||
+               !document.getElementById('sources-modal').classList.contains('hidden');
+      }
+
+      revealMainHUD() {
+        const nav = document.getElementById('hud-navbar');
+        const foot = document.getElementById('hud-timeline-bar');
+        const imm = document.getElementById('immersive-hud');
+        nav.classList.remove('opacity-0', 'pointer-events-none');
+        foot.classList.remove('opacity-0', 'pointer-events-none');
+        imm.classList.remove('opacity-0');
+      }
+
+      showIntro() {
+        this.setMode('immersive');
+        const intro = document.getElementById('intro-screen');
+        intro.classList.remove('hidden');
+        intro.style.opacity = '1';
+        intro.style.pointerEvents = 'auto';
+        this.universe3D.showIntroAgain();
+      }
+
+      // Navegación entre los 10 movimientos
+      goToEra(index) {
+        if (index < 0) index = 0;
+        if (index >= LITERARY_DATA.length) index = LITERARY_DATA.length - 1;
+        this.currentEraIndex = index;
+
+        const era = LITERARY_DATA[index];
+        document.documentElement.style.setProperty('--era-accent', era.colors.primary);
+        document.documentElement.style.setProperty('--era-secondary', era.colors.secondary);
+
+        this.universe3D.flyToEra(index);
+        this.soundEngine.updateEraTone(index);
+        this.soundEngine.playPageTurn();
+
+        this.renderImmersiveEra(index);
+        this.renderPresentationSlide(index);
+        this.updateTimelineFooter(index);
+      }
+
+      nextEra() {
+        if (this.currentEraIndex < LITERARY_DATA.length - 1) {
+          this.goToEra(this.currentEraIndex + 1);
+        }
+      }
+
+      prevEra() {
+        if (this.currentEraIndex > 0) {
+          this.goToEra(this.currentEraIndex - 1);
+        }
+      }
+
+      // Cambio entre los 6 modos de visualización
+      setMode(mode) {
+        this.currentMode = mode;
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+          const active = btn.dataset.mode === mode;
+          btn.classList.toggle('bg-gold', active);
+          btn.classList.toggle('text-obsidian', active);
+          btn.classList.toggle('font-bold', active);
+          btn.classList.toggle('text-ivory/80', !active);
+          btn.classList.toggle('hover:bg-ivory/10', !active);
+        });
+
+        const views = {
+          immersive: document.getElementById('immersive-hud'),
+          panoramic: document.getElementById('panoramic-view'),
+          authors: document.getElementById('authors-view'),
+          library: document.getElementById('library-view'),
+          presentation: document.getElementById('presentation-view'),
+          print: document.getElementById('print-view-container')
+        };
+
+        Object.entries(views).forEach(([key, el]) => {
+          if (key === mode) {
+            el.classList.remove('hidden');
+            if (key === 'immersive') el.classList.remove('opacity-0');
+          } else {
+            el.classList.add('hidden');
+          }
+        });
+
+        if (mode === 'presentation') {
+          this.renderPresentationSlide(this.currentEraIndex);
+        }
+        lucide.createIcons();
+      }
+
+      // Barra inferior de progreso cronológico (10 nodos)
+      buildTimelineNodes() {
+        const container = document.getElementById('timeline-nodes-container');
+        container.innerHTML = LITERARY_DATA.map((era, idx) => `
+          <button onclick="app.goToEra(${idx})" id="timeline-node-${idx}" class="group relative flex flex-col items-center cursor-pointer px-1" title="${era.number}. ${era.name} (${era.period})">
+            <span class="node-dot w-3.5 h-3.5 rounded-full border-2 border-ivory/40 bg-obsidian transition-all duration-300 group-hover:scale-125"></span>
+            <span class="text-[10px] font-mono mt-1 text-ivory/60 group-hover:text-gold transition hidden sm:inline">${String(era.number).padStart(2, '0')}</span>
+          </button>
+        `).join('');
+      }
+
+      updateTimelineFooter(index) {
+        const era = LITERARY_DATA[index];
+        document.getElementById('footer-era-name').textContent = `${era.number}. ${era.name}`;
+        document.getElementById('footer-era-dates').textContent = `(${era.period})`;
+        const pct = Math.round(((index + 1) / LITERARY_DATA.length) * 100);
+        document.getElementById('footer-progress-pct').textContent = `${pct}%`;
+        document.getElementById('timeline-progress-fill').style.width = `${(index / (LITERARY_DATA.length - 1)) * 96}%`;
+
+        LITERARY_DATA.forEach((item, idx) => {
+          const btn = document.getElementById(`timeline-node-${idx}`);
+          const dot = btn.querySelector('.node-dot');
+          if (idx === index) {
+            dot.style.backgroundColor = era.colors.primary;
+            dot.style.borderColor = '#F5F0E6';
+            dot.style.transform = 'scale(1.35)';
+            dot.style.boxShadow = `0 0 12px ${era.colors.primary}`;
+          } else if (idx < index) {
+            dot.style.backgroundColor = '#D4AF37';
+            dot.style.borderColor = '#D4AF37';
+            dot.style.transform = 'scale(1)';
+            dot.style.boxShadow = 'none';
+          } else {
+            dot.style.backgroundColor = '#080B14';
+            dot.style.borderColor = 'rgba(245, 240, 230, 0.35)';
+            dot.style.transform = 'scale(1)';
+            dot.style.boxShadow = 'none';
+          }
+        });
+      }
+
+      // Renderizado del HUD inmersivo para la época activa
+      renderImmersiveEra(index) {
+        const era = LITERARY_DATA[index];
+        document.getElementById('era-header-card').style.borderLeftColor = era.colors.primary;
+        document.getElementById('era-number-badge').textContent = `Movimiento ${String(era.number).padStart(2, '0')} / 10`;
+        document.getElementById('era-number-badge').style.color = era.colors.primary;
+        document.getElementById('era-number-badge').style.borderColor = era.colors.primary;
+        document.getElementById('era-period-badge').textContent = era.period;
+        document.getElementById('era-atmosphere-tag').textContent = era.atmosphereTag;
+        document.getElementById('era-title').textContent = era.name;
+        document.getElementById('era-description').textContent = era.description;
+        document.getElementById('era-special-text').textContent = era.whatMadeItSpecial;
+
+        // 4 Autores
+        const authorsContainer = document.getElementById('immersive-authors-list');
+        authorsContainer.innerHTML = era.authors.map(author => {
+          const authorWorks = era.works.filter(w => w.authorId === author.id);
+          return `
+            <div onclick="app.openAuthorModal('${author.id}')" class="tilt-card museum-glass rounded-2xl p-3 flex items-center gap-3.5 cursor-pointer group">
+              <img src="${author.portrait}" alt="${author.name}" class="w-14 h-14 rounded-xl object-cover border border-ivory/20 group-hover:border-gold transition shrink-0">
+              <div class="min-w-0 flex-1">
+                <div class="font-display text-sm font-bold text-ivory group-hover:text-gold transition truncate">${author.name}</div>
+                <div class="mt-1 space-y-0.5">
+                  ${authorWorks.map(w => `
+                    <div class="text-[11px] text-ivory/75 truncate flex items-center gap-1.5">
+                      <span class="font-mono text-[10px] px-1.5 py-0.2 rounded bg-ivory/10 text-gold shrink-0">${w.displayDate}</span>
+                      <span class="truncate">${w.title}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-ivory/30 group-hover:text-gold shrink-0"></i>
+            </div>
+          `;
+        }).join('');
+
+        // 8 Obras cronológicas
+        const worksContainer = document.getElementById('immersive-works-list');
+        worksContainer.innerHTML = era.works.map((work, wIdx) => `
+          <div onclick="app.openWorkModal('${work.id}')" class="tilt-card museum-glass rounded-2xl p-3.5 cursor-pointer group flex flex-col justify-between relative overflow-hidden">
+            <div class="flex items-start justify-between gap-2">
+              <span class="font-display text-base sm:text-lg font-extrabold tracking-tight" style="color: ${era.colors.primary};">
+                ${work.displayDate}
+              </span>
+              <span class="text-[10px] font-mono text-ivory/40">#${String(wIdx + 1).padStart(2, '0')}</span>
+            </div>
+            <h4 class="font-editorial text-lg font-bold text-ivory group-hover:text-gold transition leading-snug mt-1 line-clamp-2">
+              ${work.title}
+            </h4>
+            <div class="mt-2 pt-2 border-t border-ivory/10 flex items-center justify-between text-[11px] text-ivory/70">
+              <span class="truncate font-medium">${work.authorName}</span>
+              <span class="text-gold/80 group-hover:translate-x-0.5 transition flex items-center gap-1 shrink-0">
+                Abrir <i data-lucide="book-open" class="w-3 h-3"></i>
+              </span>
+            </div>
+          </div>
+        `).join('');
+
+        lucide.createIcons();
+      }
+
+      // Modo 2: Vista Panorámica
+      renderPanoramicView() {
+        const track = document.getElementById('panoramic-track');
+        track.innerHTML = LITERARY_DATA.map((era, idx) => `
+          <div class="w-80 shrink-0 museum-glass rounded-3xl p-5 flex flex-col justify-between border-t-4 relative" style="border-top-color: ${era.colors.primary};">
+            <div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold uppercase tracking-widest" style="color: ${era.colors.primary};">Etapa ${era.number}</span>
+                <span class="text-ivory/60 font-mono">${era.period}</span>
+              </div>
+              <h3 class="font-display text-xl font-bold text-ivory mt-1">${era.name}</h3>
+              
+              <!-- Mini retratos de los 4 autores -->
+              <div class="flex items-center gap-2 mt-3 pb-3 border-b border-ivory/10">
+                ${era.authors.map(a => `
+                  <img onclick="app.openAuthorModal('${a.id}')" src="${a.portrait}" title="${a.name}" class="w-10 h-10 rounded-full object-cover border border-gold/40 hover:scale-110 transition cursor-pointer">
+                `).join('')}
+              </div>
+
+              <!-- Lista cronológica de las 8 obras -->
+              <div class="mt-3 space-y-2">
+                ${era.works.map(w => `
+                  <div onclick="app.openWorkModal('${w.id}')" class="p-2 rounded-xl bg-ivory/5 hover:bg-ivory/10 transition cursor-pointer">
+                    <div class="text-[11px] font-bold" style="color: ${era.colors.primary};">${w.displayDate}</div>
+                    <div class="text-xs font-semibold text-ivory leading-snug">${w.title}</div>
+                    <div class="text-[10px] text-ivory/60">${w.authorName}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <button onclick="app.setMode('immersive'); app.goToEra(${idx});" class="mt-4 w-full py-2 rounded-xl bg-ivory/10 hover:bg-gold hover:text-obsidian text-xs font-semibold uppercase tracking-wider transition cursor-pointer">
+              Explorar en 3D
+            </button>
+          </div>
+        `).join('');
+      }
+
+      zoomPanoramic(delta) {
+        this.panoramicZoom = Math.min(1.4, Math.max(0.6, this.panoramicZoom + delta));
+        document.getElementById('panoramic-track').style.transform = `scale(${this.panoramicZoom})`;
+        document.getElementById('panoramic-zoom-label').textContent = `${Math.round(this.panoramicZoom * 100)}%`;
+      }
+
+      // Populate select filters
+      populateFilterDropdowns() {
+        const options = LITERARY_DATA.map(e => `<option value="${e.id}">${e.number}. ${e.name} (${e.period})</option>`).join('');
+        document.getElementById('filter-authors-era').insertAdjacentHTML('beforeend', options);
+        document.getElementById('filter-library-era').insertAdjacentHTML('beforeend', options);
+      }
+
+      // Modo 3: Galería de 40 Autores
+      renderAuthorsGallery(eraFilter) {
+        const list = eraFilter === 'all' ? ALL_AUTHORS : ALL_AUTHORS.filter(a => a.eraId === eraFilter);
+        const grid = document.getElementById('authors-grid');
+        grid.innerHTML = list.map(author => {
+          const works = ALL_WORKS.filter(w => w.authorId === author.id);
+          return `
+            <div onclick="app.openAuthorModal('${author.id}')" onmousemove="app.handleCardTilt(event, this)" onmouseleave="app.resetCardTilt(this)" class="tilt-card museum-glass rounded-3xl p-5 flex flex-col justify-between cursor-pointer group">
+              <div>
+                <div class="flex items-center gap-3.5">
+                  <img src="${author.portrait}" alt="${author.name}" class="w-16 h-16 rounded-2xl object-cover border-2 border-gold/40 group-hover:border-gold transition">
+                  <div>
+                    <span class="text-[10px] uppercase tracking-widest font-semibold" style="color: ${author.colors.primary};">${author.eraName}</span>
+                    <h3 class="font-display text-base font-bold text-ivory group-hover:text-gold transition leading-tight mt-0.5">${author.name}</h3>
+                  </div>
+                </div>
+                <p class="text-xs text-ivory/70 mt-3 line-clamp-2">${author.bio}</p>
+              </div>
+              <div class="mt-4 pt-3 border-t border-ivory/10 space-y-1.5">
+                <div class="text-[10px] uppercase tracking-widest text-ivory/50">Obras en la línea de tiempo:</div>
+                ${works.map(w => `
+                  <div class="text-xs bg-ivory/5 rounded-lg px-2.5 py-1.5 flex items-baseline justify-between gap-2">
+                    <span class="text-ivory font-medium truncate">${w.title}</span>
+                    <span class="font-mono text-[10px] text-gold shrink-0">${w.displayDate}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Modo 4: Biblioteca Virtual de 80 Obras
+      renderLibraryView(eraFilter) {
+        const list = eraFilter === 'all' ? ALL_WORKS : ALL_WORKS.filter(w => w.eraId === eraFilter);
+        const grid = document.getElementById('library-grid');
+        grid.innerHTML = list.map(work => `
+          <div onclick="app.openWorkModal('${work.id}')" class="book-3d-wrapper cursor-pointer group">
+            <div class="book-3d museum-glass rounded-r-2xl rounded-l-md p-5 h-64 flex flex-col justify-between border-l-4" style="border-left-color: ${work.colors.primary};">
+              <div class="book-spine"></div>
+              <div class="book-pages-edge"></div>
+              <div>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="font-display text-lg font-extrabold" style="color: ${work.colors.primary};">${work.displayDate}</span>
+                  <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-ivory/10 text-ivory/75 truncate max-w-[130px]">${work.eraName}</span>
+                </div>
+                <h3 class="font-editorial text-xl font-bold text-ivory group-hover:text-gold transition mt-2 line-clamp-3 leading-snug">
+                  ${work.title}
+                </h3>
+              </div>
+              <div class="pt-3 border-t border-ivory/10 flex items-center gap-2.5">
+                <img src="${work.authorPortrait}" alt="${work.authorName}" class="w-8 h-8 rounded-full object-cover border border-gold/40">
+                <div class="min-w-0 flex-1">
+                  <div class="text-xs font-semibold text-ivory truncate">${work.authorName}</div>
+                  <div class="text-[10px] text-gold">Abrir libro 3D →</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Modo 5: Presentación Escolar
+      renderPresentationSlide(index) {
+        const era = LITERARY_DATA[index];
+        document.getElementById('pres-step-indicator').textContent = `Movimiento ${era.number} de 10 • ${era.atmosphereTag}`;
+        document.getElementById('pres-era-title').textContent = era.name;
+        document.getElementById('pres-era-period').textContent = era.period;
+        document.getElementById('pres-era-desc').textContent = era.description;
+        document.getElementById('pres-era-special').textContent = `✦ Lo que la hizo especial: ${era.whatMadeItSpecial}`;
+        document.getElementById('pres-progress-bar').style.width = `${((index + 1) / 10) * 100}%`;
+
+        document.getElementById('pres-authors').innerHTML = era.authors.map(a => `
+          <div onclick="app.openAuthorModal('${a.id}')" class="museum-glass-light rounded-2xl p-3 flex flex-col items-center text-center cursor-pointer hover:border-gold transition">
+            <img src="${a.portrait}" alt="${a.name}" class="w-16 h-16 rounded-full object-cover border-2 border-gold/50 mb-2">
+            <div class="font-display text-xs sm:text-sm font-bold text-ivory">${a.name}</div>
+          </div>
+        `).join('');
+
+        document.getElementById('pres-works').innerHTML = era.works.map(w => `
+          <div onclick="app.openWorkModal('${w.id}')" class="museum-glass-light rounded-xl p-3 cursor-pointer hover:border-gold transition">
+            <div class="flex items-center justify-between text-xs font-bold" style="color: ${era.colors.primary};">
+              <span>${w.displayDate}</span>
+              <span class="text-ivory/60 font-normal truncate max-w-[140px]">${w.authorName}</span>
+            </div>
+            <div class="font-editorial text-base font-bold text-ivory mt-0.5 leading-snug">${w.title}</div>
+          </div>
+        `).join('');
+      }
+
+      presNext() {
+        const next = (this.currentEraIndex + 1) % LITERARY_DATA.length;
+        this.goToEra(next);
+      }
+
+      presPrev() {
+        const prev = (this.currentEraIndex - 1 + LITERARY_DATA.length) % LITERARY_DATA.length;
+        this.goToEra(prev);
+      }
+
+      togglePresAutoplay() {
+        this.presAutoplay = !this.presAutoplay;
+        const label = document.getElementById('label-pres-play');
+        const icon = document.getElementById('icon-pres-play');
+        if (this.presAutoplay) {
+          label.textContent = 'Pausar';
+          icon.setAttribute('data-lucide', 'pause');
+          this.presInterval = setInterval(() => this.presNext(), this.presSpeed);
+        } else {
+          label.textContent = 'Reproducir';
+          icon.setAttribute('data-lucide', 'play');
+          clearInterval(this.presInterval);
+        }
+        lucide.createIcons();
+      }
+
+      setPresSpeed(ms) {
+        this.presSpeed = parseInt(ms, 10);
+        if (this.presAutoplay) {
+          clearInterval(this.presInterval);
+          this.presInterval = setInterval(() => this.presNext(), this.presSpeed);
+        }
+      }
+
+      // Modo 6: Vista de Impresión A3 Horizontal (2 filas x 5 columnas)
+      renderPrintView() {
+        const grid = document.getElementById('print-grid-a3');
+        grid.innerHTML = LITERARY_DATA.map(era => `
+          <div class="print-card museum-glass rounded-xl p-3 border border-ivory/15 flex flex-col justify-between">
+            <div>
+              <div class="border-b border-gold/40 pb-1.5 mb-2">
+                <div class="text-[10px] font-bold uppercase tracking-wider" style="color: ${era.colors.primary};">${era.period}</div>
+                <h3 class="font-display text-sm font-bold leading-tight">${era.number}. ${era.name}</h3>
+              </div>
+              <div class="space-y-1.5">
+                ${era.works.map(w => `
+                  <div class="text-[11px] leading-snug border-b border-ivory/5 pb-1">
+                    <div class="font-bold text-gold">${w.displayDate}</div>
+                    <div class="font-semibold">${w.title}</div>
+                    <div class="opacity-75 text-[10px]">${w.authorName}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Efecto Tilt 3D interactivo en tarjetas
+      handleCardTilt(e, el) {
+        const rect = el.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width - 0.5;
+        const y = (e.clientY - rect.top) / rect.height - 0.5;
+        el.style.transform = `perspective(900px) rotateY(${x * 12}deg) rotateX(${-y * 12}deg) translateY(-4px)`;
+      }
+
+      resetCardTilt(el) {
+        el.style.transform = 'perspective(900px) rotateY(0deg) rotateX(0deg) translateY(0px)';
+      }
+
+      // Buscador inteligente en tiempo real
+      toggleSearch() {
+        const modal = document.getElementById('search-modal');
+        const isHidden = modal.classList.contains('hidden');
+        if (isHidden) {
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+          const input = document.getElementById('search-input');
+          input.value = '';
+          input.focus();
+          this.handleSearch('');
+        } else {
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+        }
+      }
+
+      handleSearch(query) {
+        const q = query.trim().toLowerCase();
+        const resultsEl = document.getElementById('search-results');
+        if (!q) {
+          resultsEl.innerHTML = `<p class="text-xs text-ivory/50 text-center py-6">Escribe el nombre de un autor (ej. Cervantes, Lorca), una obra (ej. La Regenta), un año (ej. 1605) o un movimiento.</p>`;
+          return;
+        }
+
+        const matchedEras = LITERARY_DATA.filter(e => e.name.toLowerCase().includes(q) || e.period.toLowerCase().includes(q));
+        const matchedAuthors = ALL_AUTHORS.filter(a => a.name.toLowerCase().includes(q) || a.eraName.toLowerCase().includes(q));
+        const matchedWorks = ALL_WORKS.filter(w =>
+          w.title.toLowerCase().includes(q) ||
+          w.authorName.toLowerCase().includes(q) ||
+          w.displayDate.toLowerCase().includes(q) ||
+          w.eraName.toLowerCase().includes(q)
+        );
+
+        let html = '';
+        matchedEras.forEach((e, i) => {
+          const idx = LITERARY_DATA.findIndex(item => item.id === e.id);
+          html += `
+            <div onclick="app.toggleSearch(); app.setMode('immersive'); app.goToEra(${idx});" class="p-3 rounded-xl bg-ivory/5 hover:bg-gold/20 border border-ivory/10 flex items-center justify-between cursor-pointer transition">
+              <div>
+                <span class="text-[10px] uppercase tracking-widest text-gold font-bold">Movimiento Literario</span>
+                <div class="font-display text-sm font-bold text-ivory">${e.number}. ${e.name} (${e.period})</div>
+              </div>
+              <i data-lucide="arrow-up-right" class="w-4 h-4 text-gold"></i>
+            </div>
+          `;
+        });
+
+        matchedAuthors.forEach(a => {
+          const idx = LITERARY_DATA.findIndex(item => item.id === a.eraId);
+          html += `
+            <div onclick="app.toggleSearch(); app.setMode('immersive'); app.goToEra(${idx}); app.openAuthorModal('${a.id}');" class="p-3 rounded-xl bg-ivory/5 hover:bg-gold/20 border border-ivory/10 flex items-center gap-3 cursor-pointer transition">
+              <img src="${a.portrait}" class="w-10 h-10 rounded-full object-cover border border-gold/40">
+              <div class="flex-1">
+                <span class="text-[10px] uppercase tracking-widest text-gold font-bold">Autor • ${a.eraName}</span>
+                <div class="font-display text-sm font-bold text-ivory">${a.name}</div>
+              </div>
+              <i data-lucide="user" class="w-4 h-4 text-gold"></i>
+            </div>
+          `;
+        });
+
+        matchedWorks.forEach(w => {
+          const idx = LITERARY_DATA.findIndex(item => item.id === w.eraId);
+          html += `
+            <div onclick="app.toggleSearch(); app.setMode('immersive'); app.goToEra(${idx}); app.openWorkModal('${w.id}');" class="p-3 rounded-xl bg-ivory/5 hover:bg-gold/20 border border-ivory/10 flex items-center justify-between gap-3 cursor-pointer transition">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-mono text-xs font-bold text-gold">${w.displayDate}</span>
+                  <span class="text-[10px] uppercase text-ivory/50">${w.eraName}</span>
+                </div>
+                <div class="font-editorial text-base font-bold text-ivory">${w.title}</div>
+                <div class="text-xs text-ivory/70">${w.authorName}</div>
+              </div>
+              <i data-lucide="book-open" class="w-4 h-4 text-gold shrink-0"></i>
+            </div>
+          `;
+        });
+
+        resultsEl.innerHTML = html || `<p class="text-xs text-ivory/60 text-center py-6">No se encontraron coincidencias para "${query}".</p>`;
+        lucide.createIcons();
+      }
+
+      // Modal de Obra Literaria (con apertura 3D)
+      openWorkModal(workId) {
+        const work = ALL_WORKS.find(w => w.id === workId);
+        if (!work) return;
+        this.soundEngine.playPageTurn();
+
+        document.getElementById('modal-book-era').textContent = work.eraName;
+        document.getElementById('modal-book-cover-title').textContent = work.title;
+        document.getElementById('modal-book-cover-author').textContent = work.authorName;
+        document.getElementById('modal-book-cover-year').textContent = work.displayDate;
+
+        document.getElementById('modal-work-date').textContent = work.displayDate;
+        document.getElementById('modal-work-date-type').textContent = work.dateType;
+        document.getElementById('modal-work-title').textContent = work.title;
+        document.getElementById('modal-work-author-img').src = work.authorPortrait;
+        document.getElementById('modal-work-author').textContent = work.authorName;
+        document.getElementById('modal-work-movement').textContent = `${work.eraName} (${work.eraPeriod})`;
+        document.getElementById('modal-work-desc').textContent = work.desc;
+        document.getElementById('modal-work-source').textContent = work.source;
+
+        const eraIdx = LITERARY_DATA.findIndex(e => e.id === work.eraId);
+        document.getElementById('btn-jump-work-era').onclick = () => {
+          this.closeWorkModal();
+          this.setMode('immersive');
+          this.goToEra(eraIdx);
+        };
+
+        const modal = document.getElementById('work-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        lucide.createIcons();
+      }
+
+      closeWorkModal() {
+        const modal = document.getElementById('work-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+
+      // Modal de Autor
+      openAuthorModal(authorId) {
+        const author = ALL_AUTHORS.find(a => a.id === authorId);
+        if (!author) return;
+        const works = ALL_WORKS.filter(w => w.authorId === author.id);
+
+        document.getElementById('modal-author-portrait').src = author.portrait;
+        document.getElementById('modal-author-era').textContent = `${author.eraName} (${author.eraPeriod})`;
+        document.getElementById('modal-author-name').textContent = author.name;
+        document.getElementById('modal-author-bio').textContent = author.bio;
+
+        document.getElementById('modal-author-works').innerHTML = works.map(w => `
+          <div onclick="app.closeAuthorModal(); app.openWorkModal('${w.id}');" class="p-4 rounded-2xl bg-ivory/5 hover:bg-gold/15 border border-ivory/15 hover:border-gold transition cursor-pointer">
+            <div class="font-mono text-xs font-bold text-gold">${w.displayDate}</div>
+            <div class="font-editorial text-lg font-bold text-ivory mt-1">${w.title}</div>
+            <div class="text-[11px] text-ivory/60 mt-1">${w.dateType}</div>
+          </div>
+        `).join('');
+
+        const modal = document.getElementById('author-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        lucide.createIcons();
+      }
+
+      closeAuthorModal() {
+        const modal = document.getElementById('author-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+
+      openEraDetailModal() {
+        const era = LITERARY_DATA[this.currentEraIndex];
+        if (!era) return;
+        document.getElementById('modal-era-period').textContent = `${era.period} (Etapa ${era.number} de 10)`;
+        document.getElementById('modal-era-title').textContent = era.name;
+        document.getElementById('modal-era-what').textContent = era.description;
+        document.getElementById('modal-era-special').textContent = era.whatMadeItSpecial;
+        document.getElementById('modal-era-timeline-note').textContent = era.timelineNote;
+
+        const modal = document.getElementById('era-detail-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        lucide.createIcons();
+      }
+
+      closeEraDetailModal() {
+        const modal = document.getElementById('era-detail-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+
+      toggleSourcesModal() {
+        const modal = document.getElementById('sources-modal');
+        const isHidden = modal.classList.contains('hidden');
+        modal.classList.toggle('hidden', !isHidden);
+        modal.classList.toggle('flex', isHidden);
+      }
+
+      toggleAudio() {
+        const active = this.soundEngine.toggle();
+        const icon = document.getElementById('icon-audio');
+        icon.setAttribute('data-lucide', active ? 'volume-2' : 'volume-x');
+        lucide.createIcons();
+      }
+
+      setVolume(val) {
+        this.soundEngine.setVolume(val);
+      }
+
+      toggleFullscreen() {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    }
+
+    // Inicializar al cargar el documento
+    window.addEventListener('DOMContentLoaded', () => {
+      window.app = new LiteratureTimelineApp();
+    });
+  </script>
+</body>
+</html>
